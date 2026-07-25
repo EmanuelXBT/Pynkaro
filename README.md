@@ -35,10 +35,12 @@ swift run -c release
 3. Ou monte o aplicativo de verdade (menu bar, sem terminal):
 
 ```bash
-./make_app.sh                                  # gera Pynkaro.app
-mkdir -p ~/.config/pynkaro && cp config.json ~/.config/pynkaro/
-mv Pynkaro.app /Applications/                  # opcional
+./make_app.sh          # gera Pynkaro.app e Pynkaro.dmg
 ```
+
+Para distribuir, envie o `Pynkaro.dmg`: o usuário arrasta o app para Applications e, na primeira execução, uma janela de boas-vindas pede as chaves de API (Anthropic obrigatória; ElevenLabs opcional — sem ela, voz do sistema), salvas no **Keychain**. Depois dá para editá-las em "Configurações…" no menu da orelha. O `config.json` continua funcionando como fallback para desenvolvimento.
+
+**Atenção (Gatekeeper):** com a assinatura ad-hoc atual, o app só roda sem bloqueio no Mac em que foi compilado. Para outros Macs é preciso assinar com **Developer ID** e **notarizar** (conta Apple Developer, US$ 99/ano): `codesign --sign "Developer ID Application: ..." --options runtime`, depois `xcrun notarytool submit` e `xcrun stapler staple`.
 
 O app vive na **menu bar** (sem ícone no Dock): o ícone muda com o estado (ouvindo/pensando/falando), e o menu permite pausar/retomar a escuta, definir os sugestores de notícias e sair. Rodando como .app, o config.json é lido de `~/.config/pynkaro/` e o avatar vem embutido no bundle.
 

@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var pauseItem: NSMenuItem!
     private var screenMenuItems: [NSMenuItem] = []
     private var suggestersWindow: NSWindow?
+    private var settingsWindow: NSWindow?
     private var cancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -44,7 +45,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.pauseItem.title = (status == .paused) ? "Retomar escuta" : "Pausar escuta"
             }
 
-        AssistantController.shared.start()
+        // Primeira execução sem chave: onboarding. Senão, direto ao trabalho.
+        if Config.anthropicKey == nil {
+            openSettings(onboarding: true)
+        } else {
+            AssistantController.shared.start()
+        }
     }
 
     private func buildStatusItem() {
@@ -91,6 +97,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
+        let settingsItem = NSMenuItem(title: "Configurações…",
+                                      action: #selector(openSettingsFromMenu), keyEquivalent: ",")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
+        menu.addItem(.separator())
+
         let quitItem = NSMenuItem(title: "Sair do Pynkaro",
                                   action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quitItem.target = NSApp
@@ -128,12 +141,96 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         suggestersWindow?.makeKeyAndOrderFront(nil)
     }
+
+    // MARK: - Configurações / onboarding
+
+    @objc private func openSettingsFromMenu() {
+        openSettings(onboarding: false)
+    }
+
+    private func openSettings(onboarding: Bool) {
+        let view = SettingsView(isOnboarding: onboarding) { [weak self] in
+            self?.settingsWindow?.close()
+            AssistantController.shared.start()
+        }
+        let window = NSWindow(contentViewController: NSHostingController(rootView: view))
+        window.title = onboarding ? "Bem-vindo ao Pynkaro" : "Configurações do Pynkaro"
+        window.styleMask = [.titled, .closable]
+        window.isReleasedWhenClosed = false
+        window.center()
+        settingsWindow = window
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+}
+
+// MARK: - Janela de configurações (chaves de API)
+
+/// Usada no onboarding (primeira execução sem chaves) e no menu Configurações.
+/// As chaves são salvas no Keychain do macOS.
+struct SettingsView: View {
+    let isOnboarding: Bool
+    var onSaved: (() -> Void)?
+
+    @State private var anthropicKey = Config.anthropicKey ?? ""
+    @State private var elevenLabsKey = Config.elevenLabsKey ?? ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if isOnboarding {
+                Text("Bem-vindo ao Pynkaro! 🦊")
+                    .font(.title2).bold()
+                Text("Para começar, informe suas chaves de API. Elas ficam guardadas com segurança no Keychain do seu Mac e nunca saem dele.")
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("Chaves de API").font(.headline)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Chave da Anthropic (obrigatória)")
+                    .font(.subheadline).bold()
+                TextField("sk-ant-...", text: $anthropicKey)
+                Link("Criar chave em console.anthropic.com",
+                     destination: URL(string: "https://console.anthropic.com")!)
+                    .font(.caption)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Chave da ElevenLabs (opcional)")
+                    .font(.subheadline).bold()
+                TextField("Sem ela, o app usa a voz do sistema", text: $elevenLabsKey)
+                Link("Criar chave em elevenlabs.io",
+                     destination: URL(string: "https://elevenlabs.io/app/settings/api-keys")!)
+                    .font(.caption)
+            }
+
+            if !isOnboarding {
+                Text("Mudanças na chave da ElevenLabs valem após reiniciar o app.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack {
+                Spacer()
+                Button(isOnboarding ? "Salvar e começar" : "Salvar") {
+                    Config.setAnthropicKey(anthropicKey)
+                    Config.setElevenLabsKey(elevenLabsKey)
+                    onSaved?()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .textFieldStyle(.roundedBorder)
+        .padding(20)
+        .frame(width: 440)
+    }
 }
 
 // MARK: - Janela dos sugestores de notícias
 
-/// Substitui a antiga entrada via stdin: os nomes ficam em UserDefaults
-/// e o ClaudeClient os lê a cada pergunta.
+/// Os nomes ficam em UserDefaults e o ClaudeClient os lê a cada pergunta.
 struct SuggestersView: View {
     @AppStorage("newsSuggester1") private var name1 = ""
     @AppStorage("newsSuggester2") private var name2 = ""

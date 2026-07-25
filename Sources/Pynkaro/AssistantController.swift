@@ -23,7 +23,7 @@ enum AssistantStatus: Equatable {
 
     var label: String {
         switch self {
-        case .starting:  return "Iniciando…"
+        case .starting:  return "Aguardando configuração…"
         case .waiting:   return "Aguardando \"Píncaro\""
         case .listening: return "Ouvindo…"
         case .thinking:  return "Pensando…"
@@ -34,25 +34,31 @@ enum AssistantStatus: Equatable {
 }
 
 /// Ponte entre o VoiceAssistant (AppKit/GCD) e a interface SwiftUI.
+/// O assistente só é criado quando start() é chamado — depois do onboarding,
+/// para que a escolha de voz (ElevenLabs ou sistema) veja as chaves salvas.
 final class AssistantController: ObservableObject {
     static let shared = AssistantController()
 
     @Published private(set) var status: AssistantStatus = .starting
     var isPaused: Bool { status == .paused }
+    var isRunning: Bool { assistant != nil }
 
-    private let assistant = VoiceAssistant()
+    private var assistant: VoiceAssistant?
 
-    private init() {
-        assistant.onStatusChange = { [weak self] status in
-            DispatchQueue.main.async { self?.status = status }
-        }
-    }
+    private init() {}
 
     func start() {
-        assistant.start()
+        guard assistant == nil else { return }
+        let newAssistant = VoiceAssistant()
+        newAssistant.onStatusChange = { [weak self] status in
+            DispatchQueue.main.async { self?.status = status }
+        }
+        assistant = newAssistant
+        newAssistant.start()
     }
 
     func togglePause() {
+        guard let assistant else { return }
         if isPaused {
             assistant.resume()
         } else {

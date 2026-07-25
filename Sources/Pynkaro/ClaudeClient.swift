@@ -13,7 +13,8 @@ final class ClaudeClient {
     }
 
     private var history: [[String: String]] = []
-    private let apiKey: String
+    /// Lida a cada uso: mudanças feitas em Configurações valem na hora.
+    private var apiKey: String { Config.anthropicKey ?? "" }
     private let model: String
     private let webSearchEnabled: Bool
 
@@ -80,10 +81,6 @@ final class ClaudeClient {
 
     init() {
         let env = ProcessInfo.processInfo.environment
-        apiKey = Config.anthropicKey ?? ""
-        if apiKey.isEmpty {
-            print("⚠️ Chave da Anthropic ausente: preencha anthropic_api_key no config.json.")
-        }
         model = env["PYNKARO_MODEL"] ?? "claude-sonnet-5"
         webSearchEnabled = env["PYNKARO_WEB_SEARCH"] != "0"
         if webSearchEnabled {
@@ -96,6 +93,12 @@ final class ClaudeClient {
     private var lastSuggesters: [String] = []
 
     func ask(_ question: String, completion: @escaping (Result<String, Error>) -> Void) {
+        guard !apiKey.isEmpty else {
+            completion(.failure(ClaudeError.badResponse(
+                "Chave da Anthropic não configurada. Abra Configurações no menu do Pynkaro.")))
+            return
+        }
+
         let current = newsSuggesters
         if current != lastSuggesters {
             if !history.isEmpty {

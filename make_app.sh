@@ -38,11 +38,20 @@ else
     echo "ℹ️ RiveRuntime.framework não encontrado no .build (ok se o link for estático)."
 fi
 
-# Assinatura ad-hoc (suficiente para uso local).
+# Assinatura ad-hoc (suficiente para uso local; para distribuir a outros
+# Macs é preciso assinar com Developer ID e notarizar — ver README).
 codesign --force --deep --sign - "$APP"
+
+# DMG de distribuição (arrastar para Applications).
+DMG="Pynkaro.dmg"
+rm -f "$DMG"
+STAGE=$(mktemp -d)
+cp -R "$APP" "$STAGE/"
+ln -s /Applications "$STAGE/Applications"
+hdiutil create -volname "Pynkaro" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
+rm -rf "$STAGE"
 
 echo ""
 echo "✅ $APP criado."
-echo "   As chaves de API devem estar em ~/.config/pynkaro/config.json"
-echo "   (copie com: mkdir -p ~/.config/pynkaro && cp config.json ~/.config/pynkaro/)"
-echo "   Para instalar: mv Pynkaro.app /Applications/"
+echo "💿 $DMG criado — o usuário abre e arrasta o Pynkaro para Applications."
+echo "   Na primeira execução o app pede as chaves de API (salvas no Keychain)."

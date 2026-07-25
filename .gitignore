@@ -5,3 +5,5 @@ config.json
 .swiftpm/
 .vscode/
 Pynkaro.app/
+Pynkaro.dmg
+*.old

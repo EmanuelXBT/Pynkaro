@@ -191,6 +191,9 @@ struct SettingsView: View {
     @State private var llmModel: String
     @State private var kokoroVoice: String
     @State private var wakeWordsText: String
+    @State private var ollamaModels: [String] = []
+    @State private var kokoroVoices: [String] = []
+    @State private var showAllVoices = false
 
     init(isOnboarding: Bool, onSaved: (() -> Void)? = nil) {
         self.isOnboarding = isOnboarding
@@ -240,8 +243,52 @@ struct SettingsView: View {
                     field("Ollama URL", text: $ollamaUrl, placeholder: "http://192.168.0.189:11434/v1")
                     field("Kokoro URL", text: $kokoroUrl, placeholder: "http://192.168.0.189:8880")
                     field("SearXNG URL", text: $searxngUrl, placeholder: "http://192.168.0.189:8080")
-                    field("Modelo", text: $llmModel, placeholder: "qwen2.5:3b")
-                    field("Voz Kokoro", text: $kokoroVoice, placeholder: "pm_alex")
+                    // Modelo — dropdown com os modelos instalados no Ollama
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Modelo").font(.caption).foregroundStyle(.secondary)
+                        if ollamaModels.isEmpty {
+                            TextField("qwen2.5:3b", text: $llmModel)
+                        } else {
+                            Picker("", selection: $llmModel) {
+                                if !ollamaModels.contains(llmModel) && !llmModel.isEmpty {
+                                    Text("Personalizado: \(llmModel)").tag(llmModel)
+                                }
+                                ForEach(ollamaModels, id: \.self) { model in
+                                    Text(model).tag(model)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
+                        }
+                    }
+
+                    // Voz Kokoro — dropdown com as vozes disponíveis (pt-BR por padrão)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Voz Kokoro").font(.caption).foregroundStyle(.secondary)
+                        if kokoroVoices.isEmpty {
+                            TextField("pm_alex", text: $kokoroVoice)
+                        } else {
+                            Picker("", selection: $kokoroVoice) {
+                                if !allVoiceIds.contains(kokoroVoice) && !kokoroVoice.isEmpty {
+                                    Text("Personalizado: \(kokoroVoice)").tag(kokoroVoice)
+                                }
+                                if showAllVoices {
+                                    ForEach(organizedVoices) { voice in
+                                        Text(voice.label).tag(voice.id)
+                                    }
+                                } else {
+                                    ForEach(ptVoices, id: \.self) { voice in
+                                        Text(voice).tag(voice)
+                                    }
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
+                            Toggle("Mostrar todas as vozes", isOn: $showAllVoices)
+                                .font(.caption)
+                                .toggleStyle(.checkbox)
+                        }
+                    }
                     field("Wake words (separadas por vírgula)", text: $wakeWordsText, placeholder: "pincaro, jupiter")
                 }
             } else {
@@ -280,6 +327,92 @@ struct SettingsView: View {
         .textFieldStyle(.roundedBorder)
         .padding(20)
         .frame(width: 480)
+        .onAppear { loadDynamicOptions() }
+    }
+
+    // MARK: - Opções dinâmicas (Ollama / Kokoro)
+
+    private struct VoiceOption: Identifiable {
+        let id: String
+        let label: String
+    }
+
+    private var allVoiceIds: [String] { kokoroVoices }
+
+    /// Vozes em português (prefixos pf_/pm_ do Kokoro).
+    private var ptVoices: [String] {
+        kokoroVoices.filter { $0.hasPrefix("pf_") || $0.hasPrefix("pm_") }
+    }
+
+    /// Todas as vozes com rótulo de idioma, pt-BR primeiro.
+    private var organizedVoices: [VoiceOption] {
+        kokoroVoices.map { VoiceOption(id: $0, label: voiceLabel($0)) }
+            .sorted { a, b in
+                let aPT = a.id.hasPrefix("p")
+                let bPT = b.id.hasPrefix("p")
+                if aPT != bPT { return aPT }
+                return a.label < b.label
+            }
+    }
+
+    private func voiceLabel(_ id: String) -> String {
+        let lang: String
+        switch id.prefix(2) {
+        case "af", "am": lang = "Inglês (EUA)"
+        case "bf", "bm": lang = "Inglês (RU)"
+        case "ef", "em": lang = "Espanhol"
+        case "ff": lang = "Francês"
+        case "hf", "hm": lang = "Hindi"
+        case "if", "im": lang = "Italiano"
+        case "jf", "jm": lang = "Japonês"
+        case "pf", "pm": lang = "Português (BR)"
+        case "zf", "zm": lang = "Chinês"
+        default: lang = "Outro"
+        }
+        return "\(lang) — \(id)"
+    }
+
+    private func loadDynamicOptions() {
+        loadOllamaModels()
+        loadKokoroVoices()
+    }
+
+    /// Lista os modelos instalados no Ollama (GET /api/tags).
+    private func loadOllamaModels() {
+        guard !ollamaUrl.isEmpty,
+              let url = URL(string: ollamaTagsURL(ollamaUrl)) else { return }
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 8
+        URLSession.shared.dataTask(with: req) { data, _, _ in
+            guard let data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let models = json["models"] as? [[String: Any]] else { return }
+            let names = models.compactMap { $0["name"] as? String }
+            DispatchQueue.main.async { self.ollamaModels = names }
+        }.resume()
+    }
+
+    /// Lista as vozes do Kokoro (GET /v1/audio/voices).
+    private func loadKokoroVoices() {
+        guard !kokoroUrl.isEmpty,
+              let url = URL(string: kokoroVoicesURL(kokoroUrl)) else { return }
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 8
+        URLSession.shared.dataTask(with: req) { data, _, _ in
+            guard let data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let voices = json["voices"] as? [[String: Any]] else { return }
+            let ids = voices.compactMap { $0["id"] as? String }
+            DispatchQueue.main.async { self.kokoroVoices = ids }
+        }.resume()
+    }
+
+    private func ollamaTagsURL(_ base: String) -> String {
+        base.hasSuffix("/v1") ? String(base.dropLast(3)) + "/api/tags" : base + "/api/tags"
+    }
+
+    private func kokoroVoicesURL(_ base: String) -> String {
+        base.hasSuffix("/v1") ? base + "/audio/voices" : base + "/v1/audio/voices"
     }
 
     private func field(_ title: String, text: Binding<String>, placeholder: String) -> some View {
@@ -309,6 +442,22 @@ struct SettingsView: View {
                                      kokoroVoice: nil, wakeWords: nil)
         }
         onSaved?()
+        // Reinicia o app para recarregar o Config (opções valem no start).
+        restartApp()
+    }
+
+    /// Relança o app (via LaunchServices para .app, ou o binário direto
+    /// no caso de `swift run`) e encerra a instância atual.
+    private func restartApp() {
+        let task = Process()
+        if Bundle.main.bundleURL.pathExtension == "app" {
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            task.arguments = [Bundle.main.bundleURL.path]
+        } else {
+            task.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
+        }
+        try? task.run()
+        NSApp.terminate(nil)
     }
 }
 

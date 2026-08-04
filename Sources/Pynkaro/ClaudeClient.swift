@@ -199,7 +199,7 @@ final class ClaudeClient {
         var messages: [[String: String]] = [["role": "system", "content": systemPrompt]]
         messages.append(contentsOf: history)
 
-        var body: [String: Any] = [
+        let body: [String: Any] = [
             "model": ollamaModel,
             "messages": messages,
             "stream": false,

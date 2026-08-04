@@ -15,10 +15,20 @@ import Security
 struct Config: Decodable {
     var anthropicApiKey: String?
     var elevenLabsApiKey: String?
+    // Modo Umbrel: campos opcionais no config.json (durável — valem mesmo
+    // quando o app é aberto pelo Finder, onde env vars do shell não chegam).
+    var ollamaUrl: String?
+    var kokoroUrl: String?
+    var llmModel: String?
+    var kokoroVoice: String?
 
     enum CodingKeys: String, CodingKey {
         case anthropicApiKey = "anthropic_api_key"
         case elevenLabsApiKey = "elevenlabs_api_key"
+        case ollamaUrl = "ollama_url"
+        case kokoroUrl = "kokoro_url"
+        case llmModel = "llm_model"
+        case kokoroVoice = "kokoro_voice"
     }
 
     static let shared = load()
@@ -41,24 +51,28 @@ struct Config: Decodable {
 
     /// Base URL do Ollama (ex.: http://umbrel.local:11434/v1). Se definida,
     /// o Pynkaro usa o LLM local em vez da API da Anthropic.
+    /// Resolução: env var PYNKARO_LLM_BASE_URL > config.json (ollama_url).
     static var ollamaBaseURL: String? {
-        env("PYNKARO_LLM_BASE_URL")
+        env("PYNKARO_LLM_BASE_URL") ?? shared.ollamaUrl
     }
 
     /// Base URL do Kokoro TTS (ex.: http://umbrel.local:8877). Se definida,
     /// o Pynkaro usa o TTS local em vez da ElevenLabs.
+    /// Resolução: env var PYNKARO_KOKORO_URL > config.json (kokoro_url).
     static var kokoroBaseURL: String? {
-        env("PYNKARO_KOKORO_URL")
+        env("PYNKARO_KOKORO_URL") ?? shared.kokoroUrl
     }
 
     /// Modelo do Ollama (default razoável para português + hardware modesto).
+    /// Resolução: env var PYNKARO_LLM_MODEL > config.json (llm_model).
     static var ollamaModel: String {
-        env("PYNKARO_LLM_MODEL") ?? "qwen2.5:7b"
+        env("PYNKARO_LLM_MODEL") ?? shared.llmModel ?? "qwen2.5:7b"
     }
 
     /// Voz pt-BR do Kokoro (as disponíveis dependem do modelo baixado).
+    /// Resolução: env var PYNKARO_KOKORO_VOICE > config.json (kokoro_voice).
     static var kokoroVoice: String {
-        env("PYNKARO_KOKORO_VOICE") ?? "pm_alex"
+        env("PYNKARO_KOKORO_VOICE") ?? shared.kokoroVoice ?? "pm_alex"
     }
 
     private static func env(_ key: String) -> String? {

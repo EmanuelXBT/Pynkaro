@@ -45,8 +45,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.pauseItem.title = (status == .paused) ? "Retomar escuta" : "Pausar escuta"
             }
 
-        // Primeira execução sem chave: onboarding. Senão, direto ao trabalho.
-        if Config.anthropicKey == nil {
+        // Primeira execução: se há chave da Anthropic, direto ao trabalho.
+        // Modo Umbrel (Ollama/Kokoro locais) dispensa qualquer chave paga.
+        if Config.anthropicKey == nil && Config.ollamaBaseURL == nil {
             openSettings(onboarding: true)
         } else {
             AssistantController.shared.start()
@@ -177,7 +178,13 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if isOnboarding {
+            if isOnboarding && Config.ollamaBaseURL != nil {
+                Text("Bem-vindo ao Pynkaro! 🦊")
+                    .font(.title2).bold()
+                Text("Modo Umbrel detectado (Ollama + Kokoro locais). Nenhuma chave de API é necessária — o Pynkaro já está pronto para funcionar com seu servidor.")
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if isOnboarding {
                 Text("Bem-vindo ao Pynkaro! 🦊")
                     .font(.title2).bold()
                 Text("Para começar, informe suas chaves de API. Elas ficam guardadas com segurança no Keychain do seu Mac e nunca saem dele.")
@@ -188,9 +195,10 @@ struct SettingsView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Chave da Anthropic (obrigatória)")
+                Text(Config.ollamaBaseURL == nil ? "Chave da Anthropic (obrigatória)" : "Chave da Anthropic (não necessária no modo Umbrel)")
                     .font(.subheadline).bold()
                 TextField("sk-ant-...", text: $anthropicKey)
+                    .disabled(Config.ollamaBaseURL != nil)
                 Link("Criar chave em console.anthropic.com",
                      destination: URL(string: "https://console.anthropic.com")!)
                     .font(.caption)
@@ -219,7 +227,9 @@ struct SettingsView: View {
                     onSaved?()
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
+                // No modo Umbrel a chave da Anthropic é opcional — permite salvar vazio.
+                .disabled(!(Config.ollamaBaseURL == nil) ? false
+                          : anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
         .textFieldStyle(.roundedBorder)

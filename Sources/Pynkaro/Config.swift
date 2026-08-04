@@ -108,6 +108,37 @@ struct Config: Decodable {
                        account: "elevenlabs_api_key")
     }
 
+    // MARK: - Gravação do config.json (opções do modo Umbrel)
+
+    /// Salva as opções no config.json de ~/.config/pynkaro/. O app relê o
+    /// arquivo na próxima inicialização (Config.shared é estático).
+    /// Campos vazios são omitidos — sem `ollama_url` o app volta ao modo API.
+    static func saveUmbrelOptions(ollamaUrl: String?, kokoroUrl: String?,
+                                  searxngUrl: String?, llmModel: String?,
+                                  kokoroVoice: String?, wakeWords: [String]?) {
+        var dict: [String: Any] = [:]
+        if let ollamaUrl, !ollamaUrl.isEmpty { dict["ollama_url"] = ollamaUrl }
+        if let kokoroUrl, !kokoroUrl.isEmpty { dict["kokoro_url"] = kokoroUrl }
+        if let searxngUrl, !searxngUrl.isEmpty { dict["searxng_url"] = searxngUrl }
+        if let llmModel, !llmModel.isEmpty { dict["llm_model"] = llmModel }
+        if let kokoroVoice, !kokoroVoice.isEmpty { dict["kokoro_voice"] = kokoroVoice }
+        if let wakeWords, !wakeWords.isEmpty { dict["wake_words"] = wakeWords }
+
+        let fm = FileManager.default
+        let url = fm.homeDirectoryForCurrentUser
+            .appendingPathComponent(".config/pynkaro/config.json")
+        do {
+            try fm.createDirectory(at: url.deletingLastPathComponent(),
+                                   withIntermediateDirectories: true)
+            let data = try JSONSerialization.data(withJSONObject: dict,
+                                                  options: [.prettyPrinted, .sortedKeys])
+            try data.write(to: url)
+            print("🔧 Configurações salvas em \(url.path)")
+        } catch {
+            print("⚠️ Falha ao salvar configurações: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Interno
 
     private static func resolve(keychainAccount: String,

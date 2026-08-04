@@ -21,7 +21,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusLabelItem: NSMenuItem!
     private var pauseItem: NSMenuItem!
     private var screenMenuItems: [NSMenuItem] = []
+    // ── Janela dos sugestores de notícias (desativada) ──
+    /*
     private var suggestersWindow: NSWindow?
+    */
     private var settingsWindow: NSWindow?
     private var cancellable: AnyCancellable?
 
@@ -75,10 +78,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pauseItem.target = self
         menu.addItem(pauseItem)
 
+        // ── Item "Sugestores de notícias" (desativado) ──
+        /*
         let suggestersItem = NSMenuItem(title: "Sugestores de notícias…",
                                         action: #selector(openSuggesters), keyEquivalent: "")
         suggestersItem.target = self
         menu.addItem(suggestersItem)
+        */
 
         // Em qual monitor o avatar aparece.
         let screenMenu = NSMenu()
@@ -130,6 +136,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // ── Abertura da janela de sugestores (desativada) ──
+    /*
     @objc private func openSuggesters() {
         if suggestersWindow == nil {
             let window = NSWindow(contentViewController: NSHostingController(rootView: SuggestersView()))
@@ -142,6 +150,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         suggestersWindow?.makeKeyAndOrderFront(nil)
     }
+    */
 
     // MARK: - Configurações / onboarding
 
@@ -173,71 +182,138 @@ struct SettingsView: View {
     let isOnboarding: Bool
     var onSaved: (() -> Void)?
 
-    @State private var anthropicKey = Config.anthropicKey ?? ""
-    @State private var elevenLabsKey = Config.elevenLabsKey ?? ""
+    @State private var mode: Int
+    @State private var anthropicKey: String
+    @State private var elevenLabsKey: String
+    @State private var ollamaUrl: String
+    @State private var kokoroUrl: String
+    @State private var searxngUrl: String
+    @State private var llmModel: String
+    @State private var kokoroVoice: String
+    @State private var wakeWordsText: String
+
+    init(isOnboarding: Bool, onSaved: (() -> Void)? = nil) {
+        self.isOnboarding = isOnboarding
+        self.onSaved = onSaved
+        _mode = State(initialValue: Config.ollamaBaseURL == nil ? 1 : 0)
+        _anthropicKey = State(initialValue: Config.anthropicKey ?? "")
+        _elevenLabsKey = State(initialValue: Config.elevenLabsKey ?? "")
+        _ollamaUrl = State(initialValue: Config.ollamaBaseURL ?? "")
+        _kokoroUrl = State(initialValue: Config.kokoroBaseURL ?? "")
+        _searxngUrl = State(initialValue: Config.searxngBaseURL ?? "")
+        _llmModel = State(initialValue: Config.ollamaModel)
+        _kokoroVoice = State(initialValue: Config.kokoroVoice)
+        _wakeWordsText = State(initialValue: (Config.wakeWords ?? []).joined(separator: ", "))
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            if isOnboarding && Config.ollamaBaseURL != nil {
+        VStack(alignment: .leading, spacing: 14) {
+            if isOnboarding {
                 Text("Bem-vindo ao Pynkaro! 🦊")
                     .font(.title2).bold()
-                Text("Modo Umbrel detectado (Ollama + Kokoro locais). Nenhuma chave de API é necessária — o Pynkaro já está pronto para funcionar com seu servidor.")
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else if isOnboarding {
-                Text("Bem-vindo ao Pynkaro! 🦊")
-                    .font(.title2).bold()
-                Text("Para começar, informe suas chaves de API. Elas ficam guardadas com segurança no Keychain do seu Mac e nunca saem dele.")
+                Text("Configure como o Pynkaro deve funcionar. As chaves de API ficam no Keychain do seu Mac e nunca saem dele.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
-                Text("Chaves de API").font(.headline)
+                Text("Configurações do Pynkaro").font(.headline)
             }
 
+            // Modo de operação
             VStack(alignment: .leading, spacing: 4) {
-                Text(Config.ollamaBaseURL == nil ? "Chave da Anthropic (obrigatória)" : "Chave da Anthropic (não necessária no modo Umbrel)")
-                    .font(.subheadline).bold()
-                TextField("sk-ant-...", text: $anthropicKey)
-                    .disabled(Config.ollamaBaseURL != nil)
-                Link("Criar chave em console.anthropic.com",
-                     destination: URL(string: "https://console.anthropic.com")!)
-                    .font(.caption)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Chave da ElevenLabs (opcional)")
-                    .font(.subheadline).bold()
-                TextField("Sem ela, o app usa a voz do sistema", text: $elevenLabsKey)
-                Link("Criar chave em elevenlabs.io",
-                     destination: URL(string: "https://elevenlabs.io/app/settings/api-keys")!)
-                    .font(.caption)
-            }
-
-            if !isOnboarding {
-                Text("Mudanças na chave da ElevenLabs valem após reiniciar o app.")
+                Text("Modo de operação").font(.subheadline).bold()
+                Picker("", selection: $mode) {
+                    Text("Servidor local (Umbrel)").tag(0)
+                    Text("API paga (Anthropic + ElevenLabs)").tag(1)
+                }
+                .pickerStyle(.segmented)
+                Text(mode == 0
+                     ? "LLM e voz rodam na sua Umbrel (Ollama, Kokoro, SearXNG). Nenhuma chave é necessária."
+                     : "LLM via Anthropic e voz via ElevenLabs. Requer chaves de API.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            if mode == 0 {
+                // Opções do servidor local
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Servidor local (Umbrel)").font(.subheadline).bold()
+                    field("Ollama URL", text: $ollamaUrl, placeholder: "http://192.168.0.189:11434/v1")
+                    field("Kokoro URL", text: $kokoroUrl, placeholder: "http://192.168.0.189:8880")
+                    field("SearXNG URL", text: $searxngUrl, placeholder: "http://192.168.0.189:8080")
+                    field("Modelo", text: $llmModel, placeholder: "qwen2.5:3b")
+                    field("Voz Kokoro", text: $kokoroVoice, placeholder: "pm_alex")
+                    field("Wake words (separadas por vírgula)", text: $wakeWordsText, placeholder: "pincaro, jupiter")
+                }
+            } else {
+                // Chaves de API
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Chave da Anthropic (obrigatória)")
+                        .font(.subheadline).bold()
+                    TextField("sk-ant-...", text: $anthropicKey)
+                    Link("Criar chave em console.anthropic.com",
+                         destination: URL(string: "https://console.anthropic.com")!)
+                        .font(.caption)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Chave da ElevenLabs (opcional)")
+                        .font(.subheadline).bold()
+                    TextField("Sem ela, o app usa a voz do sistema", text: $elevenLabsKey)
+                    Link("Criar chave em elevenlabs.io",
+                         destination: URL(string: "https://elevenlabs.io/app/settings/api-keys")!)
+                        .font(.caption)
+                }
+            }
+
+            Text("Chaves são salvas no Keychain; opções de servidor no config.json. Reinicie o app para aplicar.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             HStack {
                 Spacer()
                 Button(isOnboarding ? "Salvar e começar" : "Salvar") {
-                    Config.setAnthropicKey(anthropicKey)
-                    Config.setElevenLabsKey(elevenLabsKey)
-                    onSaved?()
+                    save()
                 }
                 .keyboardShortcut(.defaultAction)
-                // No modo Umbrel a chave da Anthropic é opcional — permite salvar vazio.
-                .disabled(!(Config.ollamaBaseURL == nil) ? false
-                          : anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(mode == 1 && anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
         .textFieldStyle(.roundedBorder)
         .padding(20)
-        .frame(width: 440)
+        .frame(width: 480)
+    }
+
+    private func field(_ title: String, text: Binding<String>, placeholder: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            TextField(placeholder, text: text)
+        }
+    }
+
+    private func save() {
+        // Chaves de API sempre para o Keychain (nunca em texto plano).
+        Config.setAnthropicKey(anthropicKey)
+        Config.setElevenLabsKey(elevenLabsKey)
+
+        if mode == 0 {
+            Config.saveUmbrelOptions(
+                ollamaUrl: ollamaUrl, kokoroUrl: kokoroUrl,
+                searxngUrl: searxngUrl, llmModel: llmModel,
+                kokoroVoice: kokoroVoice,
+                wakeWords: wakeWordsText.split(separator: ",")
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty })
+        } else {
+            // Modo API: remove as opções locais (sem ollama_url = modo API).
+            Config.saveUmbrelOptions(ollamaUrl: nil, kokoroUrl: nil,
+                                     searxngUrl: nil, llmModel: nil,
+                                     kokoroVoice: nil, wakeWords: nil)
+        }
+        onSaved?()
     }
 }
 
+// ── Janela dos sugestores de notícias (projeto original — desativada) ──
+/*
 // MARK: - Janela dos sugestores de notícias
 
 /// Os nomes ficam em UserDefaults e o ClaudeClient os lê a cada pergunta.
@@ -260,3 +336,4 @@ struct SuggestersView: View {
         .frame(width: 340)
     }
 }
+*/

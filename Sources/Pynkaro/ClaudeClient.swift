@@ -22,6 +22,10 @@ final class ClaudeClient {
     private let ollamaBaseURL: String?
     private let ollamaModel: String
 
+    // ── Funcionalidade "sugestores de notícias" (projeto original, canal
+    //    ancapsu) desativada a pedido do mantenedor. Código mantido comentado
+    //    como referência — veja oportunidades de reciclagem no README. ──
+    /*
     /// Nomes de quem sugeriu as notícias — definidos na janela
     /// "Sugestores de notícias" da menu bar (UserDefaults).
     private var newsSuggesters: [String] {
@@ -31,6 +35,7 @@ final class ClaudeClient {
             .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
     }
+    */
 
     /// Montado a cada pergunta para incluir a data/hora atual do Mac.
     private var systemPrompt: String {
@@ -40,6 +45,8 @@ final class ClaudeClient {
         let now = formatter.string(from: Date())
         let timezone = TimeZone.current.identifier
 
+        // ── (regra dos sugestores de notícias desativada junto com o resto) ──
+        /*
         var suggestersRule = ""
         if !newsSuggesters.isEmpty {
             let names = newsSuggesters.joined(separator: " e ")
@@ -57,8 +64,8 @@ final class ClaudeClient {
 
             """
         }
-
-        return suggestersRule + """
+        */
+        return """
         Você é Pynkaro, um assistente de voz rodando no Mac do usuário. \
         Responda sempre em português do Brasil, adequado para ser lido em voz alta. \
         REGRA ESTRITA DE TAMANHO: responda em UMA única frase, com no máximo 40 \
@@ -96,9 +103,12 @@ final class ClaudeClient {
         }
     }
 
+    // ── (desativado com os sugestores de notícias) ──
+    /*
     /// Últimos sugestores usados; quando mudam, o histórico é reiniciado para
     /// o modelo não repetir os nomes antigos que ele mesmo já falou.
     private var lastSuggesters: [String] = []
+    */
 
     func ask(_ question: String, completion: @escaping (Result<String, Error>) -> Void) {
         // Modo Umbrel (Ollama) não exige chave de API.
@@ -108,6 +118,8 @@ final class ClaudeClient {
             return
         }
 
+        // ── (bloco dos sugestores de notícias desativado) ──
+        /*
         let current = newsSuggesters
         if current != lastSuggesters {
             if !history.isEmpty {
@@ -116,6 +128,7 @@ final class ClaudeClient {
             }
             lastSuggesters = current
         }
+        */
 
         history.append(["role": "user", "content": question])
         // Limita o histórico para controlar custo/latência: em um assistente

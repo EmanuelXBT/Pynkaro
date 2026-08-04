@@ -1,142 +1,170 @@
-# Pynkaro — assistente de voz local para macOS
+# 🦊 Pynkaro — Umbrel Edition
 
-Protótipo de linha de comando. Fica ouvindo o microfone; ao ouvir **"Píncaro"**, captura a pergunta, transcreve localmente, envia para o Claude via API e fala a resposta.
+Assistente de voz local para macOS, 100% self-hosted. Fica ouvindo o microfone; ao ouvir **"Píncaro"**, captura a pergunta, transcreve localmente, envia para o **Ollama** rodando na sua Umbrel e fala a resposta com a voz do **Kokoro** — **sem nenhuma assinatura de API**.
 
-## Privacidade
+> Fork de [ralbuque/Pynkaro](https://github.com/ralbuque/Pynkaro) com foco em quem roda um servidor [Umbrel](https://umbrel.com): a versão original usa a API paga da Anthropic (Claude) e ElevenLabs; esta versão substitui ambas por serviços locais do seu servidor.
 
-- Wake word e transcrição: **Speech framework da Apple, on-device** (nenhum áudio sai do Mac, se o idioma pt-BR estiver baixado — veja abaixo).
-- Voz: **AVSpeechSynthesizer**, local.
-- Único tráfego de rede: o **texto** da pergunta para `api.anthropic.com`.
+## ✨ Destaques
 
-## Requisitos
+- **Wake word "Píncaro"** — detecção por transcrição contínua on-device (Speech framework da Apple)
+- **Transcrição 100% local** — nenhum áudio sai do Mac
+- **LLM local** — Ollama na Umbrel (`qwen2.5:3b` ou o modelo que você quiser)
+- **Voz local** — Kokoro TTS na Umbrel (pt-BR nativo, ~82M params, qualidade próxima de TTS pagos)
+- **Avatar animado** — janela flutuante com lip sync (por amplitude no modo Umbrel)
+- **Privacidade** — o único tráfego de rede é **dentro da sua LAN** (Mac ↔ Umbrel)
 
-- macOS 13+ (Apple Silicon recomendado), Xcode ou Command Line Tools instalados.
-- Chave de API da Anthropic (https://console.anthropic.com).
-- Para transcrição 100% local: em **Ajustes do Sistema > Teclado > Ditado**, ative o ditado e baixe o idioma Português (Brasil). O app avisa no início se o modo on-device está ativo.
+## 📋 Requisitos
 
-## Como rodar
+- **MacBook:** macOS 13+ (Apple Silicon recomendado), Command Line Tools (`xcode-select --install`)
+- **Umbrel** com os apps instalados:
+  - [**Ollama**](https://umbrel.com) — app oficial da Umbrel (LLM)
+  - [**Kokoro**](https://umbrel.com) — app oficial da Umbrel (TTS)
+- Para transcrição 100% local: **Ajustes do Sistema → Teclado → Ditado → ative** e baixe o idioma **Português (Brasil)**
 
-1. Copie `config.example.json` para `config.json` e preencha as chaves (o arquivo está no `.gitignore`, não vai em commits):
+## 🚀 Instalação (modo Umbrel — recomendado)
 
-```json
-{
-  "anthropic_api_key": "sk-ant-...",
-  "elevenlabs_api_key": "..."
-}
-```
-
-2. Compile e rode (desenvolvimento):
+### 1. Clone
 
 ```bash
-cd ~/Git/Pynkaro
+git clone https://github.com/EmanuelXBT/Pynkaro
+cd Pynkaro
+```
+
+### 2. Configure (config.json)
+
+Crie o arquivo `config.json` na raiz (é ignorado pelo git):
+
+```bash
+cat > config.json << 'EOF'
+{
+  "ollama_url": "http://umbrel.local:11434/v1",
+  "kokoro_url": "http://umbrel.local:8880",
+  "llm_model": "qwen2.5:3b",
+  "kokoro_voice": "pm_alex"
+}
+EOF
+```
+
+> **Se `umbrel.local` não resolver no seu Mac**, use o IP do servidor (ex.: `http://192.168.0.189:11434/v1`).
+
+### 3. Porta do Kokoro (uma única configuração manual)
+
+O app Kokoro da Umbrel, por padrão, só é acessível pelo proxy autenticado. Para o Pynkaro acessá-lo direto pela LAN, exponha a porta **8880**:
+
+1. Abra o **Files** da Umbrel → **Apps → Kokoro → docker-compose.yml**
+2. No serviço `web`, adicione:
+   ```yaml
+   services:
+     web:
+       ports:
+         - "8880:8880"
+   ```
+3. Salve, **Pare e inicie** o app Kokoro (não apenas Restart — Stop + Start recria o container com a porta)
+
+### 4. Compile e rode
+
+```bash
 swift run -c release
 ```
 
-3. Ou monte o aplicativo de verdade (menu bar, sem terminal):
+Na primeira execução o macOS pede permissões de **Microfone** e **Reconhecimento de Fala** → **Permitir**.
+
+## 🎤 Uso
+
+1. Aguarde `👂 Aguardando "Píncaro"...`
+2. Diga: **"Píncaro, que horas são?"** (ou diga só "Píncaro", aguarde o `🎤 Pode falar...` e pergunte)
+3. Ele transcreve no Mac, envia o texto para o Ollama na Umbrel, e responde com a voz do Kokoro
+4. O histórico da conversa é mantido durante a sessão
+
+## 🍎 App de menu bar (sem terminal)
 
 ```bash
 ./make_app.sh          # gera Pynkaro.app e Pynkaro.dmg
 ```
 
-Para distribuir, envie o `Pynkaro.dmg`: o usuário arrasta o app para Applications e, na primeira execução, uma janela de boas-vindas pede as chaves de API (Anthropic obrigatória; ElevenLabs opcional — sem ela, voz do sistema), salvas no **Keychain**. Depois dá para editá-las em "Configurações…" no menu da orelha. O `config.json` continua funcionando como fallback para desenvolvimento.
+O app vive na menu bar (sem ícone no Dock). Rodando como `.app`, o `config.json` é lido de `~/.config/pynkaro/config.json` — copie o arquivo para lá:
 
-**Atenção (Gatekeeper):** com a assinatura ad-hoc atual, o app só roda sem bloqueio no Mac em que foi compilado. Para outros Macs é preciso assinar com **Developer ID** e **notarizar** (conta Apple Developer, US$ 99/ano): `codesign --sign "Developer ID Application: ..." --options runtime`, depois `xcrun notarytool submit` e `xcrun stapler staple`.
+```bash
+mkdir -p ~/.config/pynkaro
+cp config.json ~/.config/pynkaro/config.json
+```
 
-O app vive na **menu bar** (sem ícone no Dock): o ícone muda com o estado (ouvindo/pensando/falando), e o menu permite pausar/retomar a escuta, definir os sugestores de notícias e sair. Rodando como .app, o config.json é lido de `~/.config/pynkaro/` e o avatar vem embutido no bundle.
+> **Gatekeeper:** com assinatura ad-hoc, o app só roda sem bloqueio no Mac em que foi compilado. Para outros Macs, seria preciso Developer ID + notarização (conta Apple Developer, US$ 99/ano).
 
-O `config.json` é procurado no diretório atual e depois em `~/.config/pynkaro/config.json`. As variáveis de ambiente `ANTHROPIC_API_KEY`/`ELEVENLABS_API_KEY` seguem funcionando como fallback para campos vazios.
+## ⚙️ Configuração
 
-Na primeira execução o macOS pedirá permissão de **Microfone** e **Reconhecimento de Fala** para o Terminal. Se os diálogos não aparecerem, habilite manualmente em Ajustes do Sistema > Privacidade e Segurança.
+### config.json (recomendado — vale em qualquer contexto)
 
-## Uso
+| Campo | Descrição |
+|---|---|
+| `ollama_url` | Base URL do Ollama (ex.: `http://umbrel.local:11434/v1`) — **ativa o modo Umbrel** |
+| `kokoro_url` | Base URL do Kokoro TTS (ex.: `http://umbrel.local:8880`) |
+| `llm_model` | Modelo do Ollama (padrão: `qwen2.5:7b`) |
+| `kokoro_voice` | Voz pt-BR do Kokoro (padrão: `pm_alex`) |
+| `anthropic_api_key` | *(opcional)* chave da Anthropic — só para o modo nuvem |
+| `elevenlabs_api_key` | *(opcional)* chave da ElevenLabs — só para o modo nuvem |
 
-1. Aguarde `👂 Aguardando "Píncaro"...`
-2. Diga: **"Píncaro, que horas são em Tóquio?"** (ou diga só "Píncaro", aguarde o `🎤 Pode falar...` no terminal, e pergunte)
-3. Ele transcreve, consulta o Claude e responde em voz alta.
-4. O histórico da conversa é mantido durante a sessão.
-
-## Configuração
-
-Chaves de API: no `config.json` (ver "Como rodar"). Demais ajustes, por variável de ambiente:
+### Variáveis de ambiente (alternativa, têm prioridade)
 
 | Variável | Padrão | Descrição |
 |---|---|---|
-| `PYNKARO_MODEL` | `claude-sonnet-5` | modelo da API Anthropic |
-| `PYNKARO_VOICE` | melhor voz masculina pt-BR instalada | nome da voz do sistema (ex.: `Felipe (Aprimorada)`) |
-| `ELEVENLABS_VOICE_ID` | `9yzdeviXkFddZ4Oz8Mok` (Lutz, masculina, risonha) | voz da ElevenLabs — a Lutz vem da Voice Library: adicione-a em My Voices na sua conta antes de usar |
-| `ELEVENLABS_MODEL` | `eleven_multilingual_v2` | use `eleven_flash_v2_5` para menor latência |
-| `PYNKARO_WEB_SEARCH` | `1` (ligada) | `0` desativa a busca na web |
-| `PYNKARO_WAKE_WORD` | `pincaro` | wake word (sem precisar recompilar; acentos e maiúsculas são ignorados) |
-| `PYNKARO_LLM_BASE_URL` | *(vazio)* | **Modo Umbrel:** base URL do Ollama (ex.: `http://umbrel.local:11434/v1`) — ativa o LLM local no lugar da Anthropic, sem chave de API |
-| `PYNKARO_LLM_MODEL` | `qwen2.5:7b` | modelo do Ollama (ajuste ao hardware do servidor) |
-| `PYNKARO_KOKORO_URL` | *(vazio)* | **Modo Umbrel:** base URL do Kokoro TTS (ex.: `http://umbrel.local:8877`) — ativa o TTS local no lugar da ElevenLabs |
-| `PYNKARO_KOKORO_VOICE` | `pm_alex` | voz pt-BR do Kokoro |
-| `PYNKARO_KOKORO_MODEL` | `kokoro` | modelo do Kokoro-FastAPI |
+| `PYNKARO_LLM_BASE_URL` | *(vazio)* | Base URL do Ollama (equivale a `ollama_url`) |
+| `PYNKARO_LLM_MODEL` | `qwen2.5:7b` | Modelo do Ollama |
+| `PYNKARO_KOKORO_URL` | *(vazio)* | Base URL do Kokoro (equivale a `kokoro_url`) |
+| `PYNKARO_KOKORO_VOICE` | `pm_alex` | Voz pt-BR do Kokoro |
+| `PYNKARO_KOKORO_MODEL` | `kokoro` | Modelo do Kokoro-FastAPI |
+| `PYNKARO_MODEL` | `claude-sonnet-5` | Modelo da Anthropic (modo nuvem) |
+| `PYNKARO_VOICE` | melhor voz masculina pt-BR | Voz do sistema (fallback) |
+| `PYNKARO_WAKE_WORD` | `pincaro` | Wake word (acentos/maiúsculas ignorados) |
+| `PYNKARO_WEB_SEARCH` | `1` | Busca na web (só funciona no modo nuvem Anthropic) |
 
-### Modo Umbrel (100% self-hosted, sem assinaturas)
+### Como funciona a escolha de serviços
 
-Se você roda um servidor [Umbrel](https://umbrel.com) com os apps **Ollama** (LLM) e **Kokoro** (TTS) instalados, o Pynkaro pode operar **sem nenhuma chave de API paga**. Defina as variáveis de ambiente (ou no `config.json`):
-
-```bash
-export PYNKARO_LLM_BASE_URL="http://umbrel.local:11434/v1"   # Ollama
-export PYNKARO_LLM_MODEL="qwen2.5:7b"                          # ajuste ao hardware
-export PYNKARO_KOKORO_URL="http://umbrel.local:8877"           # Kokoro TTS
-export PYNKARO_KOKORO_VOICE="pm_alex"                          # voz pt-BR
-```
-
-- **LLM local:** o `ClaudeClient` detecta `PYNKARO_LLM_BASE_URL` e usa o endpoint `/v1/chat/completions` (formato OpenAI) do Ollama. Busca na web fica desligada (modelo local não executa a tool da Anthropic).
-- **TTS local:** o `KokoroSpeaker` usa o endpoint `/v1/audio/speech` do Kokoro-FastAPI (pt-BR nativo) e o lip sync do avatar cai no modo por amplitude — como o fallback da ElevenLabs.
-- **Precedência:** Kokoro > ElevenLabs > voz do sistema. Sem `PYNKARO_KOKORO_URL` e sem chave ElevenLabs, o app usa a voz do Mac normalmente.
-- **Latência:** modelos locais são mais lentos que a API paga (o timeout do Ollama é 120 s). Para respostas mais rápidas, use modelos menores (ex.: `qwen2.5:3b`).
-
-### Avatar na tela
-
-Salve a imagem do assistente como `avatar.png` na raiz do projeto (ou em `~/.config/pynkaro/avatar.png`) — PNG com fundo transparente fica melhor. O avatar aparece com fade no canto inferior direito quando a wake word é detectada e some quando a resposta termina. A janela flutua acima das outras, não rouba o foco e deixa os cliques passarem. Sem o arquivo, o app apenas avisa e segue sem avatar.
-
-**Boca animada (lip sync por visemas):** com a voz da ElevenLabs, o app usa o endpoint `with-timestamps`, que devolve o áudio junto com o instante exato de cada caractere. As letras viram formatos de boca sincronizados: a → aberta, e/i e consoantes → entreaberta, o/u → arredondada, m/b/p → fechada, f/v → lábio-dental; pausas fecham a boca. Sprites, na mesma pasta e dimensões do avatar.png: `avatar_mid.png` (entreaberta) e `avatar_open.png` (aberta) são os essenciais; `avatar_round.png` (o/u) e `avatar_fv.png` (f/v) são opcionais — sem eles, o app usa o sprite mais próximo. Se a resposta vier sem timestamps, cai automaticamente no modo por amplitude (volume); com a voz do sistema, a boca segue o ritmo das palavras. Sem sprites extras, o avatar fica estático (sem erro). Dica: gere as variações com um editor de imagens por IA pedindo "mesma imagem, apenas boca X".
-
-### Avatar com rig 2D (Rive)
-
-Alternativa aos sprites: um rig animado feito no [editor da Rive](https://rive.app). Se existir `avatar.riv` na raiz do projeto (ou `~/.config/pynkaro/`), ele é usado no lugar dos PNGs. O app envia o nível de boca (0 a 4) a um input numérico do state machine — animações de idle (piscar, respirar) rodam por conta do próprio rig.
-
-Contrato esperado no arquivo .riv (nomes configuráveis por env):
-
-| Elemento | Nome padrão | Env var |
+| Serviço | Prioridade | Fallback |
 |---|---|---|
-| State machine | `State Machine 1` | `PYNKARO_RIVE_STATE_MACHINE` |
-| Input numérico da boca | `mouth` (0=fechada, 1=entreaberta, 2=aberta, 3=o/u, 4=f/v) | `PYNKARO_RIVE_INPUT` |
+| **LLM** | Ollama (se `ollama_url`/`PYNKARO_LLM_BASE_URL`) → Anthropic | — |
+| **Voz** | Kokoro (se `kokoro_url`/`PYNKARO_KOKORO_URL`) → ElevenLabs → voz do sistema | — |
 
-### Busca na web
+- **Modo Umbrel ativo** = `ollama_url` definido → o onboarding de chaves é pulado, nenhuma chave paga é necessária
+- Sem `kokoro_url` e sem chave ElevenLabs → voz do sistema do Mac (gratuita)
 
-O app habilita a ferramenta de busca da própria API da Anthropic (`web_search`): o Claude decide quando pesquisar e responde com dados atuais (notícias, cotações, clima etc.). A busca roda nos servidores da Anthropic — nada muda no app. Custo: US$ 10 por 1.000 buscas, além dos tokens; limitado a 3 buscas por pergunta (`max_uses`). Perguntas que exigem busca demoram alguns segundos a mais.
+## 🖼️ Avatar na tela
 
-### Voz ElevenLabs
+Salve a imagem do assistente como `avatar.png` na raiz do projeto (ou `~/.config/pynkaro/avatar.png`) — PNG com fundo transparente fica melhor. O avatar aparece com fade no canto inferior direito quando a wake word é detectada e some quando a resposta termina.
 
-Com `ELEVENLABS_API_KEY` definida, a resposta é sintetizada na nuvem da ElevenLabs (voz neural, muito mais natural). Apenas o **texto** da resposta é enviado; o áudio do microfone continua nunca saindo do Mac. Se a API falhar, o app usa a voz do sistema como fallback.
+**Boca animada:** no modo Umbrel, o lip sync usa a **amplitude do áudio** (sem timestamps de caractere como a ElevenLabs). Sprites opcionais: `avatar_mid.png` (entreaberta) e `avatar_open.png` (aberta); `avatar_round.png` (o/u) e `avatar_fv.png` (f/v) opcionais. Sem sprites, o avatar fica estático.
 
-Para escolher outra voz, veja as suas em https://elevenlabs.io/app/voice-lab ou liste via API:
+**Rig 2D (Rive):** se existir `avatar.riv`, é usado no lugar dos PNGs (boca via input numérico `mouth` 0–4 do state machine). Veja o contrato completo no `CLAUDE.md`.
 
-```bash
-curl -s https://api.elevenlabs.io/v1/voices -H "xi-api-key: $ELEVENLABS_API_KEY" | python3 -c "import json,sys; [print(v['voice_id'], '-', v['name']) for v in json.load(sys.stdin)['voices']]"
+## 🔍 Troubleshooting
+
+| Problema | Solução |
+|---|---|
+| Pediu chave da Anthropic | O `ollama_url` não está no `config.json` (ou não foi lido — confirme com `cat config.json`) |
+| Kokoro não responde | Confirme a porta exposta: `curl -X POST http://IP:8880/v1/audio/speech -H "Content-Type: application/json" -d '{"model":"kokoro","input":"teste","voice":"pm_alex"}'` |
+| Ollama lento | Use modelo menor (`qwen2.5:3b` em vez de `7b`); o timeout do Ollama é 120 s |
+| Wake word não detectada | Ajuste do ditado pt-BR; teste `PYNKARO_WAKE_WORD` |
+| Erro de build (Rive/XCFramework) | `swift package reset && rm -rf ~/Library/Caches/org.swift.swiftpm .build && swift package resolve && swift build` |
+| Voz estranha | Troque `kokoro_voice` (listar vozes: `curl http://IP:8880/v1/audio/voices`) |
+
+## 🏗️ Arquitetura
+
+```
+PynkaroApp.swift        → entrada do app (menu bar SwiftUI, onboarding, configurações)
+VoiceAssistant.swift    → máquina de estados (aguardando → capturando → pensando → falando)
+SpeechRecognizer.swift  → AVAudioEngine + SFSpeechRecognizer (pt-BR, on-device)
+ClaudeClient.swift      → LLM: Ollama (/v1/chat/completions) ou Anthropic (Messages API)
+KokoroSpeaker.swift     → TTS via Kokoro-FastAPI na Umbrel (/v1/audio/speech)
+ElevenLabsSpeaker.swift → TTS nuvem (modo alternativo, com timestamps p/ lip sync)
+Speaker.swift           → AVSpeechSynthesizer (voz do sistema, fallback)
+AvatarWindow.swift      → janela flutuante com avatar (sprites PNG ou rig Rive)
+Config.swift            → config.json + env vars + Keychain
 ```
 
-Ajustes no código: wake word em `VoiceAssistant.swift` (`wakeWord`), tempo de silêncio para encerrar a pergunta (`armSilenceTimer`, 1,8 s), prompt de sistema em `ClaudeClient.swift`.
+Detalhes: a sessão de reconhecimento é reiniciada a cada 45 s (limite do SFSpeechRecognizer); o fim da pergunta é detectado por silêncio (1,8 s); a escuta é pausada enquanto o assistente fala.
 
-## Arquitetura
+## 📜 Licença e créditos
 
-```
-main.swift            → entrada, run loop
-VoiceAssistant.swift  → máquina de estados (aguardando → capturando → pensando → falando)
-SpeechRecognizer.swift→ AVAudioEngine + SFSpeechRecognizer (pt-BR, on-device)
-ClaudeClient.swift    → Messages API da Anthropic, com histórico
-Speaker.swift         → AVSpeechSynthesizer (voz pt-BR)
-```
-
-Detalhes de implementação: a sessão de reconhecimento é reiniciada a cada 45 s (limite de ~1 min do SFSpeechRecognizer); o fim da pergunta é detectado por silêncio (sem nova transcrição por 1,8 s); a escuta é pausada enquanto o assistente fala, para não ouvir a si mesmo.
-
-## Limitações do protótipo / próximos passos
-
-- Roda no terminal; o próximo passo natural é um app de menu bar (SwiftUI) com ícone de estado.
-- Wake word via transcrição contínua funciona, mas consome mais CPU que um detector dedicado (ex.: Porcupine).
-- Sem streaming: a fala começa só quando a resposta completa chega. Streaming da API + fala por sentenças reduziria a latência.
-- Não dá para interromper a resposta falada (adicionar "Pynkaro, para").
+- Projeto original: [ralbuque/Pynkaro](https://github.com/ralbuque/Pynkaro)
+- TTS: [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) via [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI)
+- LLM: [Ollama](https://ollama.com) com modelos Qwen 2.5

@@ -54,7 +54,9 @@ final class KokoroSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
             "model": model,
             "input": text,
             "voice": voice,
-            "response_format": "mp3"
+            // wav evita o encode/decode mp3 no servidor e no AVAudioPlayer;
+            // na LAN o tamanho maior é irrelevante para a latência.
+            "response_format": "wav"
         ]
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
 

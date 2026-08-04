@@ -118,9 +118,11 @@ final class ClaudeClient {
         }
 
         history.append(["role": "user", "content": question])
-        // Limita o histórico para controlar custo/latência.
-        if history.count > 20 {
-            history.removeFirst(history.count - 20)
+        // Limita o histórico para controlar custo/latência: em um assistente
+        // de voz com respostas de 1 frase, 8 mensagens bastam e reduzem o
+        // prefill (a parte mais cara da latência no Ollama).
+        if history.count > 8 {
+            history.removeFirst(history.count - 8)
         }
 
         if let ollamaBaseURL {
@@ -203,7 +205,12 @@ final class ClaudeClient {
             "model": ollamaModel,
             "messages": messages,
             "stream": false,
-            "options": ["temperature": 0.7, "num_predict": 200]
+            // Mantém o modelo residente na RAM entre perguntas: elimina o
+            // cold start (reload de ~1,9 GB) na primeira pergunta após ocioso.
+            "keep_alive": -1,
+            // num_predict segue o limite de ~40 palavras do prompt; num_ctx
+            // 4096 acomoda system prompt + histórico sem truncar o contexto.
+            "options": ["temperature": 0.7, "num_predict": 100, "num_ctx": 4096]
         ]
 
         let endpoint = baseURL.hasSuffix("/v1")

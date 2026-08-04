@@ -1,6 +1,6 @@
-# 🦊 Pynkaro — Umbrel Edition
+# 🦊 Pynkaro - Umbrel & Mac via PrismML BonsAI
 
-Assistente de voz local para macOS, 100% self-hosted. Fica ouvindo o microfone; ao ouvir **"Píncaro"**, captura a pergunta, transcreve localmente, envia para um **LLM local** e fala a resposta com a voz do **Kokoro** — **sem nenhuma assinatura de API**.
+Assistente de voz local para macOS, 100% self-hosted. Fica ouvindo o microfone; ao ouvir **"Píncaro"**,ou a palavra que desejar, captura a pergunta, transcreve localmente, envia para um **LLM local** e fala a resposta com a voz do **Kokoro** — **sem nenhuma assinatura de API**.
 
 Dois modos de operação:
 

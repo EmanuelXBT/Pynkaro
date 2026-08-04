@@ -2,7 +2,7 @@
 
 Assistente de voz local para macOS, 100% self-hosted. Fica ouvindo o microfone; ao ouvir **"Píncaro"**, captura a pergunta, transcreve localmente, envia para o **Ollama** rodando na sua Umbrel e fala a resposta com a voz do **Kokoro** — **sem nenhuma assinatura de API**.
 
-> Fork de [ralbuque/Pynkaro](https://github.com/ralbuque/Pynkaro) com foco em quem roda um servidor [Umbrel](https://umbrel.com): a versão original usa a API paga da Anthropic (Claude) e ElevenLabs; esta versão substitui ambas por serviços locais do seu servidor.
+> Fork de [ralbuque/Pynkaro](https://github.com/ralbuque/Pynkaro) com foco em quem roda um servidor [Umbrel](https://umbrel.com): a versão original usa a API paga da Anthropic (Claude) e ElevenLabs; esta versão substitui ambas por serviços locais do seu servidor. [Clique aqui](https://github.com/EmanuelXBT/hermes-agent-umbrel) para ser redirecionado a um tutorial de instalação do Umbrel junto ao Hermes Agent.
 
 ## ✨ Destaques
 

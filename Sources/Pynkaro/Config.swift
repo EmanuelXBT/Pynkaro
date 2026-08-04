@@ -158,9 +158,13 @@ struct Config: Decodable {
 
     private static func load() -> Config {
         let fm = FileManager.default
+        // Prioridade: ~/.config/pynkaro/config.json PRIMEIRO (é onde o app de
+        // menu bar e o "Instalar versão local" gravam). O config.json da raiz
+        // do projeto é só fallback de desenvolvimento — se viesse antes, um
+        // config antigo (ex.: modo Umbrel) sobrescreveria o modo local do Mac.
         let candidates = [
-            URL(fileURLWithPath: fm.currentDirectoryPath).appendingPathComponent("config.json"),
-            fm.homeDirectoryForCurrentUser.appendingPathComponent(".config/pynkaro/config.json")
+            fm.homeDirectoryForCurrentUser.appendingPathComponent(".config/pynkaro/config.json"),
+            URL(fileURLWithPath: fm.currentDirectoryPath).appendingPathComponent("config.json")
         ]
         for url in candidates where fm.fileExists(atPath: url.path) {
             do {

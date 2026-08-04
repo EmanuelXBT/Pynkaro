@@ -7,6 +7,11 @@ import Security
 ///   1. Keychain do macOS — onde a interface do app salva (usuários finais)
 ///   2. config.json — diretório atual ou ~/.config/pynkaro/ (desenvolvimento)
 ///   3. Variáveis de ambiente ANTHROPIC_API_KEY / ELEVENLABS_API_KEY (fallback)
+///
+/// Modo Umbrel (self-hosted): se `PYNKARO_LLM_BASE_URL` (Ollama) e/ou
+/// `PYNKARO_KOKORO_URL` (Kokoro TTS) estiverem definidas, o Pynkaro usa os
+/// serviços locais do servidor em vez das APIs pagas. Nenhuma chave de API
+/// é necessária nesse modo.
 struct Config: Decodable {
     var anthropicApiKey: String?
     var elevenLabsApiKey: String?
@@ -30,6 +35,35 @@ struct Config: Decodable {
         resolve(keychainAccount: "elevenlabs_api_key",
                 fileValue: shared.elevenLabsApiKey,
                 envVar: "ELEVENLABS_API_KEY")
+    }
+
+    // MARK: - Modo Umbrel (self-hosted)
+
+    /// Base URL do Ollama (ex.: http://umbrel.local:11434/v1). Se definida,
+    /// o Pynkaro usa o LLM local em vez da API da Anthropic.
+    static var ollamaBaseURL: String? {
+        env("PYNKARO_LLM_BASE_URL")
+    }
+
+    /// Base URL do Kokoro TTS (ex.: http://umbrel.local:8877). Se definida,
+    /// o Pynkaro usa o TTS local em vez da ElevenLabs.
+    static var kokoroBaseURL: String? {
+        env("PYNKARO_KOKORO_URL")
+    }
+
+    /// Modelo do Ollama (default razoável para português + hardware modesto).
+    static var ollamaModel: String {
+        env("PYNKARO_LLM_MODEL") ?? "qwen2.5:7b"
+    }
+
+    /// Voz pt-BR do Kokoro (as disponíveis dependem do modelo baixado).
+    static var kokoroVoice: String {
+        env("PYNKARO_KOKORO_VOICE") ?? "pm_alex"
+    }
+
+    private static func env(_ key: String) -> String? {
+        let value = ProcessInfo.processInfo.environment[key]
+        return (value?.isEmpty ?? true) ? nil : value
     }
 
     // MARK: - Escrita (janela de Configurações)

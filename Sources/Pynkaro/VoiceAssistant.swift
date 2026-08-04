@@ -37,6 +37,10 @@ final class VoiceAssistant: NSObject {
     }
     private let recognizer = SpeechRecognizer()
     private let speaker: Speaking = {
+        // Modo Umbrel: Kokoro TTS local (gratuito) tem prioridade.
+        if let kokoroURL = Config.kokoroBaseURL {
+            return KokoroSpeaker(baseURL: kokoroURL)
+        }
         if let key = Config.elevenLabsKey {
             return ElevenLabsSpeaker(apiKey: key)
         }

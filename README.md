@@ -67,6 +67,27 @@ Chaves de API: no `config.json` (ver "Como rodar"). Demais ajustes, por variáve
 | `ELEVENLABS_MODEL` | `eleven_multilingual_v2` | use `eleven_flash_v2_5` para menor latência |
 | `PYNKARO_WEB_SEARCH` | `1` (ligada) | `0` desativa a busca na web |
 | `PYNKARO_WAKE_WORD` | `pincaro` | wake word (sem precisar recompilar; acentos e maiúsculas são ignorados) |
+| `PYNKARO_LLM_BASE_URL` | *(vazio)* | **Modo Umbrel:** base URL do Ollama (ex.: `http://umbrel.local:11434/v1`) — ativa o LLM local no lugar da Anthropic, sem chave de API |
+| `PYNKARO_LLM_MODEL` | `qwen2.5:7b` | modelo do Ollama (ajuste ao hardware do servidor) |
+| `PYNKARO_KOKORO_URL` | *(vazio)* | **Modo Umbrel:** base URL do Kokoro TTS (ex.: `http://umbrel.local:8877`) — ativa o TTS local no lugar da ElevenLabs |
+| `PYNKARO_KOKORO_VOICE` | `pm_alex` | voz pt-BR do Kokoro |
+| `PYNKARO_KOKORO_MODEL` | `kokoro` | modelo do Kokoro-FastAPI |
+
+### Modo Umbrel (100% self-hosted, sem assinaturas)
+
+Se você roda um servidor [Umbrel](https://umbrel.com) com os apps **Ollama** (LLM) e **Kokoro** (TTS) instalados, o Pynkaro pode operar **sem nenhuma chave de API paga**. Defina as variáveis de ambiente (ou no `config.json`):
+
+```bash
+export PYNKARO_LLM_BASE_URL="http://umbrel.local:11434/v1"   # Ollama
+export PYNKARO_LLM_MODEL="qwen2.5:7b"                          # ajuste ao hardware
+export PYNKARO_KOKORO_URL="http://umbrel.local:8877"           # Kokoro TTS
+export PYNKARO_KOKORO_VOICE="pm_alex"                          # voz pt-BR
+```
+
+- **LLM local:** o `ClaudeClient` detecta `PYNKARO_LLM_BASE_URL` e usa o endpoint `/v1/chat/completions` (formato OpenAI) do Ollama. Busca na web fica desligada (modelo local não executa a tool da Anthropic).
+- **TTS local:** o `KokoroSpeaker` usa o endpoint `/v1/audio/speech` do Kokoro-FastAPI (pt-BR nativo) e o lip sync do avatar cai no modo por amplitude — como o fallback da ElevenLabs.
+- **Precedência:** Kokoro > ElevenLabs > voz do sistema. Sem `PYNKARO_KOKORO_URL` e sem chave ElevenLabs, o app usa a voz do Mac normalmente.
+- **Latência:** modelos locais são mais lentos que a API paga (o timeout do Ollama é 120 s). Para respostas mais rápidas, use modelos menores (ex.: `qwen2.5:3b`).
 
 ### Avatar na tela
 

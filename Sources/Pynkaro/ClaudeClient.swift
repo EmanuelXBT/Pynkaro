@@ -17,6 +17,10 @@ final class ClaudeClient {
     private var apiKey: String { Config.anthropicKey ?? "" }
     private let model: String
     private let webSearchEnabled: Bool
+    /// Modo Umbrel: quando PYNKARO_LLM_BASE_URL aponta para o Ollama,
+    /// usa o endpoint /v1/chat/completions (formato OpenAI) sem chave.
+    private let ollamaBaseURL: String?
+    private let ollamaModel: String
 
     /// Nomes de quem sugeriu as notícias — definidos na janela
     /// "Sugestores de notícias" da menu bar (UserDefaults).
@@ -81,9 +85,13 @@ final class ClaudeClient {
 
     init() {
         let env = ProcessInfo.processInfo.environment
+        ollamaBaseURL = Config.ollamaBaseURL
+        ollamaModel = Config.ollamaModel
         model = env["PYNKARO_MODEL"] ?? "claude-sonnet-5"
         webSearchEnabled = env["PYNKARO_WEB_SEARCH"] != "0"
-        if webSearchEnabled {
+        if ollamaBaseURL != nil {
+            print("🤖 Modo Umbrel: LLM via Ollama (\(ollamaModel)) em \(ollamaBaseURL!)")
+        } else if webSearchEnabled {
             print("🌐 Busca na web habilitada (desative com PYNKARO_WEB_SEARCH=0).")
         }
     }
@@ -93,7 +101,8 @@ final class ClaudeClient {
     private var lastSuggesters: [String] = []
 
     func ask(_ question: String, completion: @escaping (Result<String, Error>) -> Void) {
-        guard !apiKey.isEmpty else {
+        // Modo Umbrel (Ollama) não exige chave de API.
+        if ollamaBaseURL == nil, apiKey.isEmpty {
             completion(.failure(ClaudeError.badResponse(
                 "Chave da Anthropic não configurada. Abra Configurações no menu do Pynkaro.")))
             return
@@ -114,6 +123,15 @@ final class ClaudeClient {
             history.removeFirst(history.count - 20)
         }
 
+        if let ollamaBaseURL {
+            askOllama(baseURL: ollamaBaseURL, completion: completion)
+        } else {
+            askAnthropic(completion: completion)
+        }
+    }
+
+    /// Caminho Anthropic (padrão): Messages API + busca web server-side.
+    private func askAnthropic(completion: @escaping (Result<String, Error>) -> Void) {
         var body: [String: Any] = [
             "model": model,
             "max_tokens": 1000,
@@ -172,6 +190,60 @@ final class ClaudeClient {
             }
             self?.history.append(["role": "assistant", "content": text])
             completion(.success(text))
+        }.resume()
+    }
+
+    /// Caminho Umbrel (Ollama): endpoint /v1/chat/completions compatível com
+    /// OpenAI. A busca na web fica desligada (o Ollama não a executa).
+    private func askOllama(baseURL: String, completion: @escaping (Result<String, Error>) -> Void) {
+        var messages: [[String: String]] = [["role": "system", "content": systemPrompt]]
+        messages.append(contentsOf: history)
+
+        var body: [String: Any] = [
+            "model": ollamaModel,
+            "messages": messages,
+            "stream": false,
+            "options": ["temperature": 0.7, "num_predict": 200]
+        ]
+
+        let endpoint = baseURL.hasSuffix("/v1")
+            ? baseURL + "/chat/completions"
+            : baseURL + "/v1/chat/completions"
+
+        var req = URLRequest(url: URL(string: endpoint)!)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 120  // modelos locais são mais lentos
+        req.setValue("application/json", forHTTPHeaderField: "content-type")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        URLSession.shared.dataTask(with: req) { [weak self] data, response, error in
+            if let error {
+                completion(.failure(error))
+                return
+            }
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            guard let data, status == 200,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                let detail = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+                completion(.failure(ClaudeError.badResponse(
+                    "Ollama (HTTP \(status)): \(detail.prefix(200))")))
+                return
+            }
+            if let apiError = json["error"] as? [String: Any],
+               let message = apiError["message"] as? String {
+                completion(.failure(ClaudeError.badResponse(message)))
+                return
+            }
+            guard let choices = json["choices"] as? [[String: Any]],
+                  let first = choices.first,
+                  let message = first["message"] as? [String: Any],
+                  let text = message["content"] as? String,
+                  !text.isEmpty else {
+                completion(.failure(ClaudeError.badResponse("Ollama não retornou texto.")))
+                return
+            }
+            self?.history.append(["role": "assistant", "content": text])
+            completion(.success(text.trimmingCharacters(in: .whitespacesAndNewlines)))
         }.resume()
     }
 }

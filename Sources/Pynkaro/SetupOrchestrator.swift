@@ -100,6 +100,17 @@ final class SetupOrchestrator: ObservableObject {
 
     private let kokoroLabel = "com.pynkaro.kokoro"
 
+    /// Escolhe um Python >= 3.10 (kokoro-onnx exige). Prefere as versões do
+    /// Homebrew; o python3 do Command Line Tools costuma ser 3.9 (incompatível).
+    private func resolvePython() -> String {
+        let candidates = ["python3.12", "python3.11", "python3.10", "python3"]
+        for candidate in candidates {
+            let out = runner.runSync("command -v \(candidate) && \(candidate) --version")
+            if out.exitCode == 0 { return candidate }
+        }
+        return "python3"
+    }
+
     func install(option: SetupOption, onApply: @escaping (SetupOption) -> Void) {
         guard !isRunning else { return }
         isRunning = true
@@ -168,7 +179,9 @@ final class SetupOrchestrator: ObservableObject {
             startMLXServer(option: option, completion: completion)
         } else {
             log("📦 Criando venv e instalando mlx-lm (pode demorar)...")
-            runner.run("python3 -m venv ~/.pynkaro-mlx && ~/.pynkaro-mlx/bin/pip install -U mlx-lm",
+            let python = resolvePython()
+            log("🐍 Usando \(python) (\(runner.runSync("\(python) --version").text.trimmingCharacters(in: .whitespacesAndNewlines)))")
+            runner.run("\(python) -m venv ~/.pynkaro-mlx && ~/.pynkaro-mlx/bin/pip install -U mlx-lm",
                        onLine: { self.log($0) }) { out in
                 if out.exitCode == 0 {
                     self.startMLXServer(option: option, completion: completion)
@@ -207,7 +220,9 @@ final class SetupOrchestrator: ObservableObject {
             startKokoroServer(completion: completion)
         } else {
             log("📦 Criando venv e instalando kokoro-onnx (pode demorar)...")
-            runner.run("python3 -m venv ~/.pynkaro-tts && ~/.pynkaro-tts/bin/pip install -U kokoro-onnx soundfile fastapi uvicorn numpy",
+            let python = resolvePython()
+            log("🐍 Usando \(python) (\(runner.runSync("\(python) --version").text.trimmingCharacters(in: .whitespacesAndNewlines)))")
+            runner.run("\(python) -m venv ~/.pynkaro-tts && ~/.pynkaro-tts/bin/pip install -U kokoro-onnx soundfile fastapi uvicorn numpy",
                        onLine: { self.log($0) }) { out in
                 guard out.exitCode == 0 else {
                     self.log("❌ Falha ao instalar Kokoro (exit \(out.exitCode)).")

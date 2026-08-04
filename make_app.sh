@@ -22,6 +22,9 @@ for f in avatar.png avatar_mid.png avatar_open.png avatar_round.png avatar_fv.pn
     [ -f "$f" ] && cp "$f" "$APP/Contents/Resources/"
 done
 
+# Servidor Kokoro local (usado pelo LaunchAgent no modo Mac local).
+[ -f tools/kokoro_local_server.py ] && cp tools/kokoro_local_server.py "$APP/Contents/Resources/"
+
 # Frameworks dinâmicos (RiveRuntime). O SPM extrai o xcframework em
 # .build/artifacts/ — procura a fatia do macOS em todo o .build.
 FRAMEWORK=$(find .build -type d -name "RiveRuntime.framework" -path "*macos*" -print -quit 2>/dev/null || true)

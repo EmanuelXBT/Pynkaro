@@ -26,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var suggestersWindow: NSWindow?
     */
     private var settingsWindow: NSWindow?
+    private var setupWindow: NSWindow?
     private var cancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -48,10 +49,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.pauseItem.title = (status == .paused) ? "Retomar escuta" : "Pausar escuta"
             }
 
-        // Primeira execução: se há chave da Anthropic, direto ao trabalho.
-        // Modo Umbrel (Ollama/Kokoro locais) dispensa qualquer chave paga.
+        // Primeira execução: se não há chave nem servidor local,
+        // abre o guia de instalação (LLM + Kokoro no Mac).
         if Config.anthropicKey == nil && Config.ollamaBaseURL == nil {
-            openSettings(onboarding: true)
+            openSetupGuide()
         } else {
             AssistantController.shared.start()
         }
@@ -77,6 +78,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                action: #selector(togglePause), keyEquivalent: "p")
         pauseItem.target = self
         menu.addItem(pauseItem)
+
+        let setupItem = NSMenuItem(title: "Instalar versão local",
+                                   action: #selector(openSetupGuide), keyEquivalent: "")
+        setupItem.target = self
+        menu.addItem(setupItem)
 
         // ── Item "Sugestores de notícias" (desativado) ──
         /*
@@ -154,6 +160,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Configurações / onboarding
 
+    /// Abre o guia de instalação do modo local no Mac (Ollama + Kokoro).
+    @objc private func openSetupGuide() {
+        if setupWindow == nil {
+            let view = SetupView {
+                self.setupWindow?.close()
+                self.openSettings(onboarding: true)
+            }
+            // NSHostingView como contentView com frame fixo (e não
+            // contentViewController): evita o updateAnimatedWindowSize que
+            // estoura o ciclo de constraints ("Update Constraints in Window
+            // pass") ao abrir a janela.
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 640, height: 660),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false)
+            let hosting = NSHostingView(rootView: view)
+            hosting.frame = NSRect(x: 0, y: 0, width: 640, height: 660)
+            hosting.autoresizingMask = [NSView.AutoresizingMask.width, NSView.AutoresizingMask.height]
+            window.contentView = hosting
+            window.title = "Pynkaro — Configuração local"
+            window.isReleasedWhenClosed = false
+            window.center()
+            setupWindow = window
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        setupWindow?.makeKeyAndOrderFront(nil)
+    }
+
     @objc private func openSettingsFromMenu() {
         openSettings(onboarding: false)
     }
@@ -205,7 +240,8 @@ struct SettingsView: View {
         _kokoroUrl = State(initialValue: Config.kokoroBaseURL ?? "")
         _searxngUrl = State(initialValue: Config.searxngBaseURL ?? "")
         _llmModel = State(initialValue: Config.ollamaModel)
-        _kokoroVoice = State(initialValue: Config.kokoroVoice)
+        // Sem kokoro_url = voz do sistema; o Picker mostra a opção dedicada.
+        _kokoroVoice = State(initialValue: Config.kokoroBaseURL == nil ? "" : Config.kokoroVoice)
         _wakeWordsText = State(initialValue: (Config.wakeWords ?? []).joined(separator: ", "))
     }
 
@@ -262,14 +298,15 @@ struct SettingsView: View {
                         }
                     }
 
-                    // Voz Kokoro — dropdown com as vozes disponíveis (pt-BR por padrão)
+                    // Voz — dropdown com as vozes disponíveis (pt-BR por padrão)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Voz Kokoro").font(.caption).foregroundStyle(.secondary)
-                        if kokoroVoices.isEmpty {
+                        Text("Voz").font(.caption).foregroundStyle(.secondary)
+                        if kokoroVoices.isEmpty && kokoroVoice.isEmpty {
                             TextField("pm_alex", text: $kokoroVoice)
                         } else {
                             Picker("", selection: $kokoroVoice) {
-                                if !allVoiceIds.contains(kokoroVoice) && !kokoroVoice.isEmpty {
+                                Text("Voz do sistema (Mac)").tag("")
+                                if !kokoroVoice.isEmpty && !allVoiceIds.contains(kokoroVoice) {
                                     Text("Personalizado: \(kokoroVoice)").tag(kokoroVoice)
                                 }
                                 if showAllVoices {
@@ -428,10 +465,14 @@ struct SettingsView: View {
         Config.setElevenLabsKey(elevenLabsKey)
 
         if mode == 0 {
+            // "Voz do sistema (Mac)" = kokoro_voice vazio; o kokoro_url é
+            // omitido do config para o app usar o Speaker local.
+            let effectiveKokoroUrl = kokoroVoice.isEmpty ? nil : kokoroUrl
+            let effectiveKokoroVoice = kokoroVoice.isEmpty ? nil : kokoroVoice
             Config.saveUmbrelOptions(
-                ollamaUrl: ollamaUrl, kokoroUrl: kokoroUrl,
+                ollamaUrl: ollamaUrl, kokoroUrl: effectiveKokoroUrl,
                 searxngUrl: searxngUrl, llmModel: llmModel,
-                kokoroVoice: kokoroVoice,
+                kokoroVoice: effectiveKokoroVoice,
                 wakeWords: wakeWordsText.split(separator: ",")
                     .map { $0.trimmingCharacters(in: .whitespaces) }
                     .filter { !$0.isEmpty })

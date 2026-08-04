@@ -1,0 +1,139 @@
+#!/usr/bin/env python3
+"""
+Pynkaro — servidor TTS Kokoro local (macOS).
+
+Expõe um endpoint OpenAI-compatível /v1/audio/speech usando kokoro-onnx,
+o mesmo protocolo que o Kokoro-FastAPI do Umbrel. O Pynkaro aponta
+kokoro_url para http://localhost:8888 e funciona sem mudanças no app.
+
+Uso:
+    python3 kokoro_local_server.py            # usa venv ~/.pynkaro-tts (cria se faltar)
+    python3 kokoro_local_server.py --port 8888
+
+Instalação (uma vez):
+    python3 -m venv ~/.pynkaro-tts
+    ~/.pynkaro-tts/bin/pip install -U kokoro-onnx soundfile fastapi uvicorn numpy
+
+Os modelos (kokoro-v1.0.onnx + voices-v1.0.bin, ~300 MB) são baixados
+automaticamente para ~/.pynkaro-tts/models/ na primeira execução.
+"""
+import argparse
+import io
+import os
+import sys
+import urllib.request
+import wave
+from pathlib import Path
+
+import numpy as np
+from fastapi import FastAPI
+from fastapi.responses import Response
+from pydantic import BaseModel
+import uvicorn
+
+MODEL_VERSION = "v1.0"
+MODEL_URL = ("https://github.com/thewh1teagle/kokoro-onnx/releases/download/"
+             f"model-files-{MODEL_VERSION}/kokoro-{MODEL_VERSION}.onnx")
+VOICES_URL = ("https://github.com/thewh1teagle/kokoro-onnx/releases/download/"
+              f"model-files-{MODEL_VERSION}/voices-{MODEL_VERSION}.bin")
+
+DEFAULT_PORT = 8888
+DEFAULT_VOICE = "pm_alex"
+
+
+def ensure_model_dir() -> Path:
+    """Diretório dos modelos dentro do venv (~/.pynkaro-tts/models)."""
+    venv = Path.home() / ".pynkaro-tts"
+    model_dir = venv / "models"
+    model_dir.mkdir(parents=True, exist_ok=True)
+    return model_dir
+
+
+def download(url: str, dest: Path) -> None:
+    """Baixa com barra simples de progresso (retomável se o arquivo existir)."""
+    if dest.exists() and dest.stat().st_size > 0:
+        return
+    print(f"⬇️  Baixando {dest.name} (~{dest.name.startswith('kokoro') and '300 MB' or 'pequeno'})...")
+    tmp = dest.with_suffix(dest.suffix + ".part")
+    req = urllib.request.Request(url, headers={"User-Agent": "Pynkaro/1.0"})
+    with urllib.request.urlopen(req) as resp, open(tmp, "wb") as out:
+        total = int(resp.headers.get("Content-Length", 0))
+        done = 0
+        while True:
+            chunk = resp.read(1024 * 256)
+            if not chunk:
+                break
+            out.write(chunk)
+            done += len(chunk)
+            if total:
+                pct = done * 100 // total
+                print(f"\r   {pct:3d}% ({done // (1024 * 1024)} MB)", end="", flush=True)
+    print()
+    tmp.rename(dest)
+
+
+def load_kokoro():
+    from kokoro_onnx import Kokoro  # import tardio: falha amigável se não instalado
+
+    model_dir = ensure_model_dir()
+    model_path = model_dir / f"kokoro-{MODEL_VERSION}.onnx"
+    voices_path = model_dir / f"voices-{MODEL_VERSION}.bin"
+    download(MODEL_URL, model_path)
+    download(VOICES_URL, voices_path)
+    print("🧠 Carregando Kokoro (pode levar alguns segundos na 1ª vez)...")
+    return Kokoro(str(model_path), str(voices_path))
+
+
+kokoro = None
+app = FastAPI(title="Pynkaro Kokoro local", version="1.0")
+
+
+class SpeechRequest(BaseModel):
+    model: str = "kokoro"
+    input: str
+    voice: str = DEFAULT_VOICE
+    response_format: str = "wav"  # aceito; sempre devolvemos wav
+
+
+@app.get("/v1/models")
+def models():
+    return {"object": "list", "data": [{"id": "kokoro", "object": "model"}]}
+
+
+@app.post("/v1/audio/speech")
+def speech(req: SpeechRequest):
+    if kokoro is None:
+        return Response(content="Kokoro não carregado", status_code=503)
+    # Vozes "p*" (pf_/pm_) são português do Brasil; demais, inglês.
+    lang = "pt-br" if req.voice.startswith("p") else "en-us"
+    samples, sample_rate = kokoro.create(req.input, voice=req.voice, speed=1.0, lang=lang)
+
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(int(sample_rate))
+        w.writeframes((samples * 32767).astype(np.int16).tobytes())
+    return Response(content=buf.getvalue(), media_type="audio/wav")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Pynkaro Kokoro TTS local (OpenAI-compatível)")
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    args = parser.parse_args()
+
+    global kokoro
+    try:
+        kokoro = load_kokoro()
+    except ImportError:
+        print("❌ kokoro-onnx não instalado. Rode:")
+        print("   python3 -m venv ~/.pynkaro-tts && ~/.pynkaro-tts/bin/pip install -U kokoro-onnx soundfile fastapi uvicorn numpy")
+        sys.exit(1)
+
+    print(f"🗣️  Kokoro local no ar: http://localhost:{args.port}/v1/audio/speech")
+    print("   Configure o Pynkaro com kokoro_url = http://localhost:8888")
+    uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
+
+
+if __name__ == "__main__":
+    main()

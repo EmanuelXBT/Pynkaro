@@ -5,5 +5,7 @@
   "ollama_url": "http://192.168.0.189:11434/v1",
   "kokoro_url": "http://192.168.0.189:8880",
   "llm_model": "qwen2.5:3b",
-  "kokoro_voice": "pm_alex"
+  "kokoro_voice": "pm_alex",
+  "searxng_url": "http://192.168.0.189:8080",
+  "wake_words": ["pincaro", "outra_palavra"]
 }

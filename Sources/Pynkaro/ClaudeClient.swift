@@ -126,7 +126,7 @@ final class ClaudeClient {
         }
 
         if let ollamaBaseURL {
-            askOllama(baseURL: ollamaBaseURL, completion: completion)
+            askOllama(baseURL: ollamaBaseURL, question: question, completion: completion)
         } else {
             askAnthropic(completion: completion)
         }
@@ -196,9 +196,61 @@ final class ClaudeClient {
     }
 
     /// Caminho Umbrel (Ollama): endpoint /v1/chat/completions compatível com
-    /// OpenAI. A busca na web fica desligada (o Ollama não a executa).
-    private func askOllama(baseURL: String, completion: @escaping (Result<String, Error>) -> Void) {
+    /// OpenAI. Se o SearXNG estiver configurado, busca na web antes de
+    /// montar o prompt e injeta os resultados como contexto.
+    private func askOllama(baseURL: String,
+                           question: String,
+                           completion: @escaping (Result<String, Error>) -> Void) {
+        guard let searxng = Config.searxngBaseURL else {
+            completeOllama(baseURL: baseURL, webContext: nil, completion: completion)
+            return
+        }
+        searchWeb(searxng: searxng, question: question) { snippets in
+            self.completeOllama(baseURL: baseURL, webContext: snippets, completion: completion)
+        }
+    }
+
+    /// Consulta o SearXNG (formato JSON) e extrai os snippets dos 5 melhores resultados.
+    private func searchWeb(searxng: String,
+                           question: String,
+                           completion: @escaping ([String]) -> Void) {
+        guard let encoded = question.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: searxng + "/search?q=" + encoded + "&format=json") else {
+            completion([])
+            return
+        }
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 15
+        req.setValue("Pynkaro/1.0 (macOS)", forHTTPHeaderField: "User-Agent")
+        URLSession.shared.dataTask(with: req) { data, _, _ in
+            guard let data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let results = json["results"] as? [[String: Any]] else {
+                completion([])
+                return
+            }
+            var snippets: [String] = []
+            for result in results.prefix(5) {
+                if let title = result["title"] as? String,
+                   let content = result["content"] as? String,
+                   !content.isEmpty {
+                    snippets.append("• \(title): \(content)")
+                }
+            }
+            completion(snippets)
+        }.resume()
+    }
+
+    /// Monta o prompt (com contexto web opcional) e chama o Ollama.
+    private func completeOllama(baseURL: String,
+                                webContext: [String]?,
+                                completion: @escaping (Result<String, Error>) -> Void) {
         var messages: [[String: String]] = [["role": "system", "content": systemPrompt]]
+        if let webContext, !webContext.isEmpty {
+            let context = "Informações recentes da web (use-as apenas se relevantes para responder):\n"
+                + webContext.joined(separator: "\n")
+            messages.append(["role": "system", "content": context])
+        }
         messages.append(contentsOf: history)
 
         let body: [String: Any] = [

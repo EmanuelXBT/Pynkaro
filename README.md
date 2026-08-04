@@ -101,6 +101,8 @@ cp config.json ~/.config/pynkaro/config.json
 | `kokoro_url` | Base URL do Kokoro TTS (ex.: `http://umbrel.local:8880`) |
 | `llm_model` | Modelo do Ollama (padrão: `qwen2.5:7b`) |
 | `kokoro_voice` | Voz pt-BR do Kokoro (padrão: `pm_alex`) |
+| `searxng_url` | Base URL do SearXNG (ex.: `http://umbrel.local:8080`) — **habilita busca na web no modo Umbrel** |
+| `wake_words` | Lista de wake words (ex.: `["pincaro", "jupiter"]`) — todas ativam o assistente |
 | `anthropic_api_key` | *(opcional)* chave da Anthropic — só para o modo nuvem |
 | `elevenlabs_api_key` | *(opcional)* chave da ElevenLabs — só para o modo nuvem |
 
@@ -113,6 +115,7 @@ cp config.json ~/.config/pynkaro/config.json
 | `PYNKARO_KOKORO_URL` | *(vazio)* | Base URL do Kokoro (equivale a `kokoro_url`) |
 | `PYNKARO_KOKORO_VOICE` | `pm_alex` | Voz pt-BR do Kokoro |
 | `PYNKARO_KOKORO_MODEL` | `kokoro` | Modelo do Kokoro-FastAPI |
+| `PYNKARO_SEARXNG_URL` | *(vazio)* | Base URL do SearXNG (equivale a `searxng_url`) |
 | `PYNKARO_MODEL` | `claude-sonnet-5` | Modelo da Anthropic (modo nuvem) |
 | `PYNKARO_VOICE` | melhor voz masculina pt-BR | Voz do sistema (fallback) |
 | `PYNKARO_WAKE_WORD` | `pincaro` | Wake word (acentos/maiúsculas ignorados) |

@@ -21,6 +21,8 @@ struct Config: Decodable {
     var kokoroUrl: String?
     var llmModel: String?
     var kokoroVoice: String?
+    var searxngUrl: String?
+    var wakeWords: [String]?
 
     enum CodingKeys: String, CodingKey {
         case anthropicApiKey = "anthropic_api_key"
@@ -29,6 +31,8 @@ struct Config: Decodable {
         case kokoroUrl = "kokoro_url"
         case llmModel = "llm_model"
         case kokoroVoice = "kokoro_voice"
+        case searxngUrl = "searxng_url"
+        case wakeWords = "wake_words"
     }
 
     static let shared = load()
@@ -73,6 +77,18 @@ struct Config: Decodable {
     /// Resolução: env var PYNKARO_KOKORO_VOICE > config.json (kokoro_voice).
     static var kokoroVoice: String {
         env("PYNKARO_KOKORO_VOICE") ?? shared.kokoroVoice ?? "pm_alex"
+    }
+
+    /// Base URL do SearXNG (ex.: http://192.168.0.189:8080). Se definida,
+    /// o Pynkaro busca na web antes de montar o prompt do Ollama.
+    /// Resolução: env var PYNKARO_SEARXNG_URL > config.json (searxng_url).
+    static var searxngBaseURL: String? {
+        env("PYNKARO_SEARXNG_URL") ?? shared.searxngUrl
+    }
+
+    /// Lista de wake words do config.json (além do padrão "pincaro").
+    static var wakeWords: [String]? {
+        shared.wakeWords
     }
 
     private static func env(_ key: String) -> String? {

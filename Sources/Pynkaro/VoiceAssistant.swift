@@ -19,6 +19,9 @@ final class VoiceAssistant: NSObject {
         if let custom = ProcessInfo.processInfo.environment["PYNKARO_WAKE_WORD"], !custom.isEmpty {
             return [custom.lowercased()]
         }
+        if let fromConfig = Config.wakeWords, !fromConfig.isEmpty {
+            return fromConfig.map { $0.lowercased() }
+        }
         return ["pincaro"]
     }()
 

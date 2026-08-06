@@ -13,13 +13,23 @@ struct SetupView: View {
 
     private let ram = Self.ramGB()
 
+    /// Opções compatíveis com a RAM deste Mac. As que exigem mais memória
+    /// (ex.: 27B num M4 de 16 GB) ficam ocultas — são impraticáveis.
+    private var compatibleOptions: [SetupOption] {
+        SetupOption.compatible(ramGB: ram)
+    }
+
+    private var blockedOptions: [SetupOption] {
+        SetupOption.all.filter { $0.minRAMGB > ram }
+    }
+
     @State private var selectedOptionID: String
     @StateObject private var orchestrator = SetupOrchestrator()
     @State private var copiedInstall = false
     @State private var copiedTTS = false
 
     private var selectedOption: SetupOption {
-        SetupOption.all.first { $0.id == selectedOptionID } ?? SetupOption.all[0]
+        compatibleOptions.first { $0.id == selectedOptionID } ?? compatibleOptions[0]
     }
 
     private let mlxSetupCommand = "python3 -m venv ~/.pynkaro-mlx && ~/.pynkaro-mlx/bin/pip install -U mlx-lm"
@@ -43,7 +53,7 @@ struct SetupView: View {
             GroupBox("1. Modelo (LLM)") {
                 VStack(alignment: .leading, spacing: 6) {
                     Picker("", selection: $selectedOptionID) {
-                        ForEach(SetupOption.all) { option in
+                        ForEach(compatibleOptions) { option in
                             Text(option.label).tag(option.id)
                         }
                     }
@@ -52,6 +62,12 @@ struct SetupView: View {
                     Text("RAM: \(selectedOption.ramNote). \(selectedOption.needsMLX ? "Requer o servidor MLX (LaunchAgent)." : "Usa o Ollama (app de menu bar).")")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    if !blockedOptions.isEmpty {
+                        Text("⚠️ Ocultas (RAM insuficiente): \(blockedOptions.map(\.label).joined(separator: " · "))")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     HStack {
                         Text(selectedOption.needsMLX ? mlxSetupCommand : (selectedOption.pullCommand ?? ""))
                             .font(.system(.body, design: .monospaced))

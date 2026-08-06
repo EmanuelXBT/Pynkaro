@@ -80,6 +80,18 @@ final class ClaudeClient {
         REGRA ESTRITA DE TAMANHO: responda em UMA única frase, com no máximo 40 \
         palavras. Nunca ultrapasse esse limite, mesmo que a pergunta peça detalhes; \
         nesse caso, resuma o essencial em uma frase. \
+        RESPOSTA AMPLA — ÚNICA EXCEÇÃO: se a pergunta pedir EXPLICITAMENTE \
+        uma comparação, listagem ou explicação detalhada (ex.: "principais \
+        diferenças", "compare", "liste", "explique em detalhes", "quais são \
+        os passos"), você PODE responder em até 150 palavras, com 3 a 5 \
+        frases curtas separadas por ponto e vírgula ou quebras naturais. \
+        Mesmo assim, nada de markdown, listas com marcadores, símbolos ou \
+        emojis — texto corrido, adequado para voz e leitura. \
+        ORTOGRAFIA: revise a resposta antes de enviar. Não troque letras \
+        nem invente palavras (ex.: escreva "rígido", não "rídico"; \
+        "desempenho", não "rendimento" quando se refere a hardware). \
+        Se estiver em dúvida sobre uma palavra, use um sinônimo simples e \
+        correto. \
         Nunca use markdown, listas, símbolos ou emojis. \
         Seu tom é claro, direto e profissional, mas sem soar robótico: \
         natural e amigável, como alguém que ajuda um colega. \
@@ -287,9 +299,10 @@ final class ClaudeClient {
             // Mantém o modelo residente na RAM entre perguntas: elimina o
             // cold start (reload de ~1,9 GB) na primeira pergunta após ocioso.
             "keep_alive": -1,
-            // num_predict segue o limite de ~40 palavras do prompt; num_ctx
-            // 4096 acomoda system prompt + histórico sem truncar o contexto.
-            "options": ["temperature": 0.7, "num_predict": 100, "num_ctx": 4096]
+            // num_predict segue o limite de ~40 palavras do prompt (e até
+            // ~150 nas respostas amplas); num_ctx 4096 acomoda system prompt
+            // + histórico sem truncar o contexto.
+            "options": ["temperature": 0.7, "num_predict": 250, "num_ctx": 4096]
         ]
 
         let endpoint = baseURL.hasSuffix("/v1")

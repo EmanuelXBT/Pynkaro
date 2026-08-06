@@ -247,6 +247,7 @@ final class VoiceAssistant: NSObject {
         silenceTimer?.invalidate()
         recognizer.stopListening()
         avatar.hide()
+        AnswerWindow.shared.hide()
         question = ""
         lastTranscript = ""
         state = .waitingWakeWord
@@ -300,10 +301,18 @@ final class VoiceAssistant: NSObject {
         print("💬 \(reply)")
         state = .speaking
         avatar.setCaption(reply)
+        // Resposta ampla (acima do limite de fala curta): mostra o texto
+        // completo na janela de leitura enquanto fala o resumo.
+        let wordCount = reply.split(whereSeparator: \.isWhitespace).count
+        if wordCount > 45 {
+            print("📖 Resposta ampla (\(wordCount) palavras) — abrindo janela de leitura.")
+            AnswerWindow.shared.show(reply)
+        }
         // A escuta fica parada enquanto fala — evita que o assistente ouça a si mesmo.
         speaker.speak(reply) { [weak self] in
             guard let self else { return }
             self.avatar.hide()
+            AnswerWindow.shared.hide()
             self.state = .waitingWakeWord
             print("👂 Aguardando \"\(wakeWords[0])\"...")
             self.restartListening()

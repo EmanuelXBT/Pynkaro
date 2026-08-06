@@ -13,6 +13,10 @@ struct SetupOption: Identifiable {
     let pullCommand: String?      // nil se MLX (não usa ollama pull)
     let serverLabel: String?      // nil se Ollama (serviço nativo do app)
     let serverCommand: [String]?  // comando do LaunchAgent (MLX)
+    /// RAM mínima do Mac para a opção ser viável (GB). Opções acima da RAM
+    /// instalada são bloqueadas no seletor — ex.: 27B é impraticável num
+    /// M4 Air de 16 GB (não responde; o load/swap estoura).
+    let minRAMGB: Int
 }
 
 extension SetupOption {
@@ -25,7 +29,8 @@ extension SetupOption {
                     ramNote: "~2 GB de RAM",
                     pullCommand: "ollama pull qwen2.5:3b",
                     serverLabel: nil,
-                    serverCommand: nil),
+                    serverCommand: nil,
+                    minRAMGB: 4),
         SetupOption(id: "qwen7b",
                     label: "qwen2.5:7b (equilíbrio)",
                     ollamaUrl: "http://localhost:11434/v1",
@@ -34,7 +39,8 @@ extension SetupOption {
                     ramNote: "~6 GB de RAM",
                     pullCommand: "ollama pull qwen2.5:7b",
                     serverLabel: nil,
-                    serverCommand: nil),
+                    serverCommand: nil,
+                    minRAMGB: 8),
         SetupOption(id: "qwen14b",
                     label: "qwen2.5:14b (qualidade, 24 GB+)",
                     ollamaUrl: "http://localhost:11434/v1",
@@ -43,39 +49,48 @@ extension SetupOption {
                     ramNote: "~11 GB de RAM",
                     pullCommand: "ollama pull qwen2.5:14b",
                     serverLabel: nil,
-                    serverCommand: nil),
+                    serverCommand: nil,
+                    minRAMGB: 16),
         SetupOption(id: "bonsaiQ1",
                     label: "Bonsai-27B Q1_0 via Ollama (27B em ~4 GB)",
                     ollamaUrl: "http://localhost:11434/v1",
                     modelName: "hf.co/prism-ml/Bonsai-27B-gguf:Q1_0",
                     needsMLX: false,
-                    ramNote: "~4-5 GB de RAM",
+                    ramNote: "~4-5 GB de RAM, mas 27B exige 32 GB+ p/ ser viável",
                     pullCommand: "ollama pull hf.co/prism-ml/Bonsai-27B-gguf:Q1_0",
                     serverLabel: nil,
-                    serverCommand: nil),
+                    serverCommand: nil,
+                    minRAMGB: 32),
         SetupOption(id: "bonsaiMlx1",
                     label: "Bonsai-27B 1-bit via MLX (mais rápido no M4)",
                     ollamaUrl: "http://localhost:11435/v1",
                     modelName: "prism-ml/Bonsai-27B-mlx-1bit",
                     needsMLX: true,
-                    ramNote: "~4-6 GB de RAM",
+                    ramNote: "~4-6 GB de RAM, mas 27B exige 32 GB+ p/ ser viável",
                     pullCommand: nil,
                     serverLabel: "com.pynkaro.mlx1",
                     serverCommand: ["\(NSHomeDirectory())/.pynkaro-mlx/bin/mlx_lm.server",
                                     "--model", "prism-ml/Bonsai-27B-mlx-1bit",
-                                    "--port", "11435"]),
+                                    "--port", "11435"],
+                    minRAMGB: 32),
         SetupOption(id: "bonsaiMlxTer",
                     label: "Bonsai-27B Ternary 2-bit via MLX (qualidade 95% do FP16)",
                     ollamaUrl: "http://localhost:11435/v1",
                     modelName: "prism-ml/Ternary-Bonsai-27B-mlx-2bit",
                     needsMLX: true,
-                    ramNote: "~8-9 GB de RAM",
+                    ramNote: "~8-9 GB de RAM, mas 27B exige 32 GB+ p/ ser viável",
                     pullCommand: nil,
                     serverLabel: "com.pynkaro.mlx2",
                     serverCommand: ["\(NSHomeDirectory())/.pynkaro-mlx/bin/mlx_lm.server",
                                     "--model", "prism-ml/Ternary-Bonsai-27B-mlx-2bit",
-                                    "--port", "11435"]),
+                                    "--port", "11435"],
+                    minRAMGB: 32),
     ]
+
+    /// Opções compatíveis com a RAM do Mac atual (usado pelo seletor).
+    static func compatible(ramGB: Int) -> [SetupOption] {
+        all.filter { $0.minRAMGB <= ramGB }
+    }
 
     static func recommendedID(ramGB: Int) -> String {
         if ramGB < 12 { return "qwen3b" }
@@ -114,6 +129,16 @@ final class SetupOrchestrator: ObservableObject {
 
     func install(option: SetupOption, onApply: @escaping (SetupOption) -> Void) {
         guard !isRunning else { return }
+        // Bloqueio de hardware: opção que exige mais RAM que o Mac tem não
+        // deve nem tentar instalar (27B num M4 de 16 GB fica em swap e não
+        // responde). O seletor já oculta essas opções; isto é defesa em
+        // profundidade caso a opção chegue por outro caminho.
+        let ram = Int(ProcessInfo.processInfo.physicalMemory) / (1024 * 1024 * 1024)
+        guard option.minRAMGB <= ram else {
+            log("❌ \(option.label) exige \(option.minRAMGB) GB de RAM; este Mac tem \(ram) GB.")
+            log("   Escolha um modelo compatível (ex.: qwen2.5:7b).")
+            return
+        }
         isRunning = true
         log("🦊 Iniciando instalação: \(option.label)")
 

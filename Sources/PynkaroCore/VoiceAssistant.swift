@@ -196,7 +196,7 @@ final class VoiceAssistant: NSObject {
         case .speaking:
             // Durante a fala, permite cancelar com "esquece"/"cancela" —
             // útil para interromper uma resposta errada antes do fim.
-            if isCancelRequest(text) {
+            if Self.isCancelRequest(text) {
                 cancelSpeaking()
             }
         case .thinking:
@@ -227,7 +227,7 @@ final class VoiceAssistant: NSObject {
                 .trimmingCharacters(in: CharacterSet(charactersIn: " ,.!?"))
         }
         // "Esquece" / "deixa pra lá" / "cancela": aborta sem responder.
-        if isCancelRequest(question) {
+        if Self.isCancelRequest(question) {
             cancelCapture()
             return
         }

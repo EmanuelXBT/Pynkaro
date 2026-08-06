@@ -208,6 +208,7 @@ cp config.json ~/.config/pynkaro/config.json
 | `kokoro_voice` | Voz pt-BR do Kokoro (padrão: `pm_alex`) |
 | `searxng_url` | Base URL do SearXNG (ex.: `http://umbrel.local:8080`) — **habilita busca na web no modo Umbrel** |
 | `wake_words` | Lista de wake words (ex.: `["pincaro", "jupiter"]`) — todas ativam o assistente |
+| `intro_enabled` | *(opcional, default `false`)* apresentação pré-definida: com `true`, dizer **"se apresente"** responde um roteiro fixo (IntroScript) sem consultar o LLM — útil para demonstração/vídeo. Alternativa: `PYNKARO_INTRO_ENABLED=1` |
 | `anthropic_api_key` | *(opcional)* chave da Anthropic — só para o modo nuvem |
 | `elevenlabs_api_key` | *(opcional)* chave da ElevenLabs — só para o modo nuvem |
 

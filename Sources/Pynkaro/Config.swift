@@ -23,6 +23,10 @@ struct Config: Decodable {
     var kokoroVoice: String?
     var searxngUrl: String?
     var wakeWords: [String]?
+    /// Habilita a apresentação pré-definida ("se apresente" → IntroScript).
+    /// OFF por padrão; ligue para demonstrações/vídeo. Resolução:
+    /// env var PYNKARO_INTRO_ENABLED > config.json (intro_enabled).
+    var introEnabled: Bool?
     /// Modo de operação explícito: "mac" | "umbrel" | "api". Gravado pelas
     /// Configurações/Instalador. Configs antigos sem o campo são inferidos
     /// pela URL (localhost → Mac, IP LAN → Umbrel, ausente → API).
@@ -37,6 +41,7 @@ struct Config: Decodable {
         case kokoroVoice = "kokoro_voice"
         case searxngUrl = "searxng_url"
         case wakeWords = "wake_words"
+        case introEnabled = "intro_enabled"
         case mode = "mode"
     }
 
@@ -94,6 +99,16 @@ struct Config: Decodable {
     /// Lista de wake words do config.json (além do padrão "pincaro").
     static var wakeWords: [String]? {
         shared.wakeWords
+    }
+
+    /// Apresentação pré-definida ("se apresente") ATIVADA? OFF por padrão —
+    /// ligue via config.json (`intro_enabled: true`) ou env
+    /// `PYNKARO_INTRO_ENABLED=1` (ex.: gravação de vídeo de demonstração).
+    static var introEnabled: Bool {
+        if let envValue = env("PYNKARO_INTRO_ENABLED") {
+            return envValue == "1" || envValue.lowercased() == "true"
+        }
+        return shared.introEnabled ?? false
     }
 
     /// Modos de operação suportados pelo Pynkaro.

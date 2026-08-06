@@ -294,9 +294,11 @@ final class VoiceAssistant: NSObject {
 
         // Apresentação pré-definida ("se apresente"): responde o roteiro
         // fixo do IntroScript SEM consultar o LLM — rápido, determinístico
-        // e sempre igual (útil para gravar vídeo de demonstração). Sem
-        // janela de leitura (AnswerWindow): o texto rola no caption.
-        if IntroScript.matches(q) {
+        // e sempre igual. DESATIVADA por padrão (off no repo oficial);
+        // ligue via config.json `intro_enabled: true` ou env
+        // PYNKARO_INTRO_ENABLED=1 (ex.: gravação de vídeo de demonstração).
+        // Sem janela de leitura (AnswerWindow): o texto rola no caption.
+        if Config.introEnabled, IntroScript.matches(q) {
             Log.debug("🎬 IntroScript: apresentação pré-definida (sem LLM).")
             handleAnswer(.success(IntroScript.text), showAnswerWindow: false)
             return

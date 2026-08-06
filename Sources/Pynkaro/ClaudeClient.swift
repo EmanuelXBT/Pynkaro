@@ -22,20 +22,6 @@ final class ClaudeClient {
     private let ollamaBaseURL: String?
     private let ollamaModel: String
 
-    // ── Funcionalidade "sugestores de notícias" (projeto original, canal
-    //    ancapsu) desativada a pedido do mantenedor. Código mantido comentado
-    //    como referência — veja oportunidades de reciclagem no README. ──
-    /*
-    /// Nomes de quem sugeriu as notícias — definidos na janela
-    /// "Sugestores de notícias" da menu bar (UserDefaults).
-    private var newsSuggesters: [String] {
-        let defaults = UserDefaults.standard
-        return [defaults.string(forKey: "newsSuggester1"),
-                defaults.string(forKey: "newsSuggester2")]
-            .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-    }
-    */
 
     /// Montado a cada pergunta para incluir a data/hora atual do Mac.
     private var systemPrompt: String {
@@ -45,26 +31,6 @@ final class ClaudeClient {
         let now = formatter.string(from: Date())
         let timezone = TimeZone.current.identifier
 
-        // ── (regra dos sugestores de notícias desativada junto com o resto) ──
-        /*
-        var suggestersRule = ""
-        if !newsSuggesters.isEmpty {
-            let names = newsSuggesters.joined(separator: " e ")
-            suggestersRule = """
-            Se perguntarem quem sugeriu a notícia ou as notícias, responda exatamente: \
-            "Essas notícias foram sugeridas por \(names) e várias outras pessoas." \
-            Os nomes atuais são SEMPRE os desta instrução; se a conversa anterior \
-            mencionar nomes diferentes, ignore-os. \
-            Se perguntarem o que você ACHA das pessoas que sugeriram a notícia (ou \
-            "do pessoal que sugeriu"), faça uma crítica curta e bem-humorada a \(names): \
-            zoeira leve e carinhosa, como entre amigos — pode brincar com os nomes, \
-            com o suposto gosto deles para notícias, etc. Nunca seja ofensivo ou cruel; \
-            é deboche afetuoso. Não use a resposta fixa nesse caso, improvise uma nova \
-            piada a cada vez, mencionando os nomes. \
-
-            """
-        }
-        */
         return """
         Você é Pynkaro, um assistente de voz rodando no Mac do usuário. \
         IDIOMA — REGRA ABSOLUTA: você PODE raciocinar e pensar em inglês \
@@ -135,12 +101,6 @@ final class ClaudeClient {
         }
     }
 
-    // ── (desativado com os sugestores de notícias) ──
-    /*
-    /// Últimos sugestores usados; quando mudam, o histórico é reiniciado para
-    /// o modelo não repetir os nomes antigos que ele mesmo já falou.
-    private var lastSuggesters: [String] = []
-    */
 
     /// Extrai o texto da resposta do Ollama (/v1/chat/completions).
     /// Separada da closure de rede para ser testável.
@@ -172,17 +132,6 @@ final class ClaudeClient {
             return
         }
 
-        // ── (bloco dos sugestores de notícias desativado) ──
-        /*
-        let current = newsSuggesters
-        if current != lastSuggesters {
-            if !history.isEmpty {
-                history.removeAll()
-                print("♻️ Sugestores de notícias mudaram; histórico da conversa reiniciado.")
-            }
-            lastSuggesters = current
-        }
-        */
 
         history.append(["role": "user", "content": question])
         // Limita o histórico para controlar custo/latência: em um assistente

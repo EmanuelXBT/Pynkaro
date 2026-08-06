@@ -36,7 +36,11 @@ final class CommandRunner {
 
         process.terminationHandler = { proc in
             DispatchQueue.main.async {
-                completion(Output(exitCode: proc.terminationStatus, text: ""))
+                // text = o que já foi lido do pipe até o fim do processo
+                // (o streaming por linhas via onLine continua sendo o uso
+                // principal do run(); runSync lê até EOF e é completo).
+                completion(Output(exitCode: proc.terminationStatus,
+                                  text: String(data: buffer, encoding: .utf8) ?? ""))
             }
         }
 

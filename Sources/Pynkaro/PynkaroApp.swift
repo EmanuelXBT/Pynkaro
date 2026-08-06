@@ -21,10 +21,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusLabelItem: NSMenuItem!
     private var pauseItem: NSMenuItem!
     private var screenMenuItems: [NSMenuItem] = []
-    // ── Janela dos sugestores de notícias (desativada) ──
-    /*
-    private var suggestersWindow: NSWindow?
-    */
     private var settingsWindow: NSWindow?
     private var setupWindow: NSWindow?
     private var cancellable: AnyCancellable?
@@ -131,13 +127,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupItem.target = self
         menu.addItem(setupItem)
 
-        // ── Item "Sugestores de notícias" (desativado) ──
-        /*
-        let suggestersItem = NSMenuItem(title: "Sugestores de notícias…",
-                                        action: #selector(openSuggesters), keyEquivalent: "")
-        suggestersItem.target = self
-        menu.addItem(suggestersItem)
-        */
 
         // Em qual monitor o avatar aparece.
         let screenMenu = NSMenu()
@@ -189,21 +178,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // ── Abertura da janela de sugestores (desativada) ──
-    /*
-    @objc private func openSuggesters() {
-        if suggestersWindow == nil {
-            let window = NSWindow(contentViewController: NSHostingController(rootView: SuggestersView()))
-            window.title = "Sugestores de notícias"
-            window.styleMask = [.titled, .closable]
-            window.isReleasedWhenClosed = false
-            window.center()
-            suggestersWindow = window
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        suggestersWindow?.makeKeyAndOrderFront(nil)
-    }
-    */
 
     // MARK: - Configurações / onboarding
 
@@ -559,54 +533,9 @@ struct SettingsView: View {
 
     /// Relança o app (via LaunchServices para .app, ou o binário direto
     /// no caso de `swift run`) e encerra a instância atual.
+    /// Relança o app (helper compartilhadocom a Instalação).
     private func restartApp() {
-        let task = Process()
-        if Bundle.main.bundleURL.pathExtension == "app" {
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            task.arguments = [Bundle.main.bundleURL.path]
-        } else {
-            // CommandLine.arguments[0] pode ser só o nome do binário quando
-            // executado via `swift run` (sem caminho), o que faz o run()
-            // falhar silenciosamente e o app morre SEM relançar — e as
-            // mudanças de config (ex.: wake words) só valem no processo novo.
-            // Bundle.main.executablePath é sempre absoluto e confiável.
-            task.executableURL = URL(fileURLWithPath: Bundle.main.executablePath
-                                     ?? CommandLine.arguments[0])
-        }
-        do {
-            try task.run()
-        } catch {
-            print("⚠️ Falha ao relançar o app: \(error.localizedDescription)")
-        }
-        // Pequena espera para o novo processo iniciar antes de encerrar o
-        // atual (evita perder o terminal no modo `swift run`).
-        usleep(300_000)
-        NSApp.terminate(nil)
+        AppRestart.relaunch()
     }
 }
 
-// ── Janela dos sugestores de notícias (projeto original — desativada) ──
-/*
-// MARK: - Janela dos sugestores de notícias
-
-/// Os nomes ficam em UserDefaults e o ClaudeClient os lê a cada pergunta.
-struct SuggestersView: View {
-    @AppStorage("newsSuggester1") private var name1 = ""
-    @AppStorage("newsSuggester2") private var name2 = ""
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Quem sugeriu as notícias de hoje?")
-                .font(.headline)
-            TextField("Primeiro nome", text: $name1)
-            TextField("Segundo nome", text: $name2)
-            Text("Usados quando alguém pergunta \"quem sugeriu essas notícias?\". As mudanças valem já na próxima pergunta.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .textFieldStyle(.roundedBorder)
-        .padding(20)
-        .frame(width: 340)
-    }
-}
-*/

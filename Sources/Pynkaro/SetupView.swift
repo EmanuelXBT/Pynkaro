@@ -173,24 +173,8 @@ struct SetupView: View {
 
     /// Relança o app (via LaunchServices para .app, ou o binário direto
     /// no caso de `swift run`) e encerra a instância atual.
+    /// Relança o app (helper compartilhadocom as Configurações).
     private func restartApp() {
-        let task = Process()
-        if Bundle.main.bundleURL.pathExtension == "app" {
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            task.arguments = [Bundle.main.bundleURL.path]
-        } else {
-            // Bundle.main.executablePath (absoluto) em vez de
-            // CommandLine.arguments[0]: no `swift run` o argumento pode vir
-            // só com o nome do binário e o relançamento falha em silêncio.
-            task.executableURL = URL(fileURLWithPath: Bundle.main.executablePath
-                                     ?? CommandLine.arguments[0])
-        }
-        do {
-            try task.run()
-        } catch {
-            print("⚠️ Falha ao relançar o app: \(error.localizedDescription)")
-        }
-        usleep(300_000)
-        NSApp.terminate(nil)
+        AppRestart.relaunch()
     }
 }

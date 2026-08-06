@@ -226,16 +226,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // autoresizingMask do hosting + minWidth/minHeight na SwiftUI
             // view fazem o conteúdo acompanhar o tamanho.
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 640, height: 660),
+                contentRect: NSRect(x: 0, y: 0, width: 720, height: 660),
                 styleMask: [.titled, .closable, .resizable],
                 backing: .buffered,
                 defer: false)
             let hosting = NSHostingView(rootView: view)
-            hosting.frame = NSRect(x: 0, y: 0, width: 640, height: 660)
+            hosting.frame = NSRect(x: 0, y: 0, width: 720, height: 660)
             hosting.autoresizingMask = [NSView.AutoresizingMask.width, NSView.AutoresizingMask.height]
             window.contentView = hosting
             window.title = "Pynkaro — Configuração local"
-            window.minSize = NSSize(width: 600, height: 620)
+            window.minSize = NSSize(width: 700, height: 620)
             window.isReleasedWhenClosed = false
             window.center()
             setupWindow = window
@@ -461,12 +461,21 @@ struct SettingsView: View {
     private var allVoiceIds: [String] { kokoroVoices }
 
     /// Vozes padrão do dropdown (sem "Mostrar todas"): do idioma do
-    /// sistema; se o idioma não tiver vozes no Kokoro, fallback pt-BR + inglês.
+    /// sistema; se o idioma não tiver vozes no Kokoro, fallback pt-BR +
+    /// inglês. A voz atualmente selecionada é sempre incluída, mesmo fora
+    /// do idioma do sistema (ex.: Mac em inglês com pm_alex padrão) —
+    /// senão ela some do menu e o fallback "Personalizado" nem dispara.
     private var defaultVoices: [VoiceOption] {
         let prefixes = systemLanguagePrefixes
-        return organizedVoices.filter { opt in
+        var voices = organizedVoices.filter { opt in
             prefixes.contains { opt.id.hasPrefix($0) }
         }
+        if !kokoroVoice.isEmpty,
+           !voices.contains(where: { $0.id == kokoroVoice }),
+           let selected = organizedVoices.first(where: { $0.id == kokoroVoice }) {
+            voices.append(selected)
+        }
+        return voices
     }
 
     /// Prefixos de idioma do Kokoro para o idioma do sistema.

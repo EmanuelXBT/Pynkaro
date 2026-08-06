@@ -151,7 +151,8 @@ struct SetupView: View {
         // constraints (crash "Update Constraints in Window pass").
         // O usuário pode redimensionar a janela (maxWidth/.infinity deixam
         // o conteúdo crescer e caber textos longos e o log de instalação).
-        .frame(minWidth: 600, minHeight: 620)
+        // 720px acomoda os textos de requisitos das opções ocultas (27B).
+        .frame(minWidth: 700, minHeight: 620)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

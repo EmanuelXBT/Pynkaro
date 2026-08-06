@@ -49,16 +49,18 @@ Tudo roda no próprio MacBook — não depende da Umbrel. Latência de resposta 
 
 ### Opções de modelo
 
-| Opção | RAM usada | Instalação automática |
-|---|---|---|
-| `qwen2.5:3b` | ~2 GB | Ollama (`brew install --cask ollama` + pull) |
-| `qwen2.5:7b` | ~6 GB | Ollama |
-| `qwen2.5:14b` | ~11 GB | Ollama |
-| **Bonsai-27B Q1_0** (27B em ~4 GB) | ~4-5 GB | Ollama |
-| **Bonsai-27B 1-bit** | ~4-6 GB | MLX (`mlx_lm.server` via LaunchAgent) |
-| **Bonsai-27B Ternary 2-bit** | ~8-9 GB | MLX |
+| Opção | RAM usada | RAM mínima do Mac | Instalação automática |
+|---|---|---|---|
+| `qwen2.5:3b` | ~2 GB | 4 GB | Ollama (`brew install --cask ollama` + pull) |
+| `qwen2.5:7b` | ~6 GB | 8 GB | Ollama |
+| `qwen2.5:14b` | ~11 GB | 16 GB | Ollama |
+| **Bonsai-27B Q1_0** (27B em ~4 GB) | ~4-5 GB | 32 GB | Ollama |
+| **Bonsai-27B 1-bit** | ~4-6 GB | 32 GB | MLX (`mlx_lm.server` via LaunchAgent) |
+| **Bonsai-27B Ternary 2-bit** | ~8-9 GB | 32 GB | MLX |
 
 > **Bonsai-27B** (prism-ml): modelo de pesos binários/ternários — um 27B que cabe em poucos GB, otimizado para Apple Silicon. O **Ternary 2-bit** mantém ~95% da qualidade FP16.
+>
+> **Bloqueio por hardware:** o instalador detecta a RAM do Mac e **oculta automaticamente** as opções incompatíveis (aviso laranja). Ex.: num Mac de 16 GB, os 27B não aparecem — 27B em 16 GB fica em swap e não responde na prática. O limite por opção está na coluna "RAM mínima do Mac".
 
 ### Como funciona por baixo
 
@@ -156,7 +158,10 @@ Na primeira execução o macOS pede permissões de **Microfone** e **Reconhecime
 
 - **Idioma:** o modelo pode raciocinar em inglês internamente, mas **toda resposta é em português do Brasil** — sem misturar outros idiomas, exceto palavras-<empréstimo</em> sem tradução natural (`software`, `cache`, `feedback`...)
 - **Tom:** claro, direto e profissional; humor **opcional e sutil** — só aparece se a pergunta for claramente descontraída
-- **Tamanho:** uma única frase, no máximo ~40 palavras (adequado para voz)
+- **Tamanho:** uma única frase, no máximo ~40 palavras — **exceto** quando a pergunta pede explicitamente comparação/listagem/explicação ("principais diferenças", "compare", "liste"...), caso em que a resposta pode ter até ~150 palavras
+- **Resposta ampla na tela:** respostas longas (>45 palavras) abrem a **janela de leitura** (canto superior direito, redimensionável) com o texto completo — o usuário lê enquanto ouve
+- **Cancelar por voz:** durante a fala, diga **"esquece"** (ou "cancela") para interromper a resposta imediatamente
+- **Anti-alucinação:** o modelo **não inventa** produtos, serviços ou fatos. Se a pergunta parecer erro de transcrição (ex.: "PlayStation BR dois" em vez de "PlayStation VR2"), ele responde que não tem certeza e pede para reformular — "não sei" é melhor que inventar
 - O comportamento é definido pelo **system prompt** no `ClaudeClient.swift` (recomputado a cada pergunta com a data/hora)
 
 ## 🍎 App de menu bar (sem terminal)
@@ -245,8 +250,11 @@ Salve a imagem do assistente como `avatar.png` na raiz do projeto (ou `~/.config
 | **App fala "rodando no Umbrel" no modo Mac** | `~/.config/pynkaro/config.json` tem prioridade — confira o log `🔑 Configuração carregada de ...` e o conteúdo do arquivo |
 | Kokoro não responde | Confirme a porta exposta: `curl -X POST http://IP:8880/v1/audio/speech -H "Content-Type: application/json" -d '{"model":"kokoro","input":"teste","voice":"pm_alex"}'` |
 | **Bonsai-27B demora muito (modo Mac)** | GGUF Q1_0 roda na CPU — use `qwen2.5:7b` para uso diário ou a variante MLX do 27B ("Instalar versão local" → Bonsai-27B 1-bit/Ternary via MLX) |
+| **Modelo 27B não aparece no instalador** | Não é bug: o bloqueio por RAM ocultou a opção (27B exige 32 GB). Use qwen 3b/7b/14b conforme a RAM do Mac |
+| **Resposta errada em andamento** | Diga **"esquece"** (ou "cancela") durante a fala — o assistente interrompe na hora e volta a aguardar |
+| **Modelo inventa produto/serviço inexistente** | Reforce pedindo para reformular; o prompt tem regra anti-alucinação — "PlayStation BR dois" (erro de transcrição de "VR2") deve gerar pedido de confirmação |
 | **`ollama rm` "model not found"** | Copie o nome exato do `ollama list` — um ponto extra no final (`Q1_0.`) faz o comando falhar |
-| Ollama lento | Use modelo menor (`qwen2.5:3b` em vez de `7b`); o timeout do Ollama é 120 s |
+| Ollama lento | Use modelo menor (`qwen2.5:3b` em vez de `7b`); o timeout do Ollama é 240 s (120 s era insuficiente para a 1ª carga de modelos grandes) |
 | Wake word não detectada | Ajuste do ditado pt-BR; teste `PYNKARO_WAKE_WORD` |
 | Erro de build (Rive/XCFramework) | `swift package reset && rm -rf ~/Library/Caches/org.swift.swiftpm .build && swift package resolve && swift build` |
 | Voz estranha | Troque `kokoro_voice` (listar vozes: `curl http://IP:8880/v1/audio/voices`) |
@@ -262,6 +270,7 @@ KokoroSpeaker.swift     → TTS via Kokoro (/v1/audio/speech) — Umbrel ou loca
 ElevenLabsSpeaker.swift → TTS nuvem (modo alternativo, com timestamps p/ lip sync)
 Speaker.swift           → AVSpeechSynthesizer (voz do sistema, fallback)
 AvatarWindow.swift      → janela flutuante com avatar (sprites PNG ou rig Rive)
+AnswerWindow.swift      → janela de leitura p/ respostas amplas (>45 palavras)
 Config.swift            → config.json (~/.config tem prioridade) + env vars + Keychain
 SetupView.swift         → janela "Instalar versão local" (opções + log streaming)
 SetupOrchestrator.swift → máquina de estados da instalação (idempotente)

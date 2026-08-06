@@ -1,0 +1,92 @@
+import Foundation
+
+/// Auto-teste da lógica pura do Pynkaro (sem XCTest, roda sem Xcode):
+///
+///     swift build -c release
+///     ./.build/release/Pynkaro --selftest
+///
+/// Saída esperada: "✅ SELFTEST OK — N verificações passaram" e exit 0.
+/// Em falha: "❌ SELFTEST FALHOU — N falhas" e exit 1.
+enum SelfTest {
+    static func run() -> Never {
+        var passed = 0
+        var failures = 0
+
+        func check(_ name: String, _ condition: Bool) {
+            if condition {
+                passed += 1
+                print("✅ \(name)")
+            } else {
+                failures += 1
+                print("❌ \(name)")
+            }
+        }
+
+        // MARK: Config.inferMode (modos de operação)
+        check("inferMode(nil) == .api",
+              Config.inferMode(ollamaURL: nil) == .api)
+        check("inferMode(localhost) == .mac",
+              Config.inferMode(ollamaURL: "http://localhost:11434/v1") == .mac)
+        check("inferMode(127.0.0.1) == .mac",
+              Config.inferMode(ollamaURL: "http://127.0.0.1:11434/v1") == .mac)
+        check("inferMode(IP LAN) == .umbrel",
+              Config.inferMode(ollamaURL: "http://192.168.0.189:11434/v1") == .umbrel)
+        check("inferMode(umbrel.local) == .umbrel",
+              Config.inferMode(ollamaURL: "http://umbrel.local:11434/v1") == .umbrel)
+
+        // MARK: VoiceAssistant.isCancelRequest
+        check("isCancelRequest('esquece')", VoiceAssistant.isCancelRequest("esquece"))
+        check("isCancelRequest('Esquece')", VoiceAssistant.isCancelRequest("Esquece"))
+        check("isCancelRequest('ESQUECA')", VoiceAssistant.isCancelRequest("ESQUECA"))
+        check("isCancelRequest('cancela')", VoiceAssistant.isCancelRequest("cancela"))
+        check("isCancelRequest('deixa pra la')", VoiceAssistant.isCancelRequest("deixa pra la"))
+        check("isCancelRequest('deixa para lá')", VoiceAssistant.isCancelRequest("deixa para lá"))
+        check("!isCancelRequest('esqueci meu nome')", !VoiceAssistant.isCancelRequest("esqueci meu nome"))
+        check("!isCancelRequest('cancela o som')", !VoiceAssistant.isCancelRequest("cancela o som"))
+        check("!isCancelRequest('qual a hora')", !VoiceAssistant.isCancelRequest("qual a hora"))
+        check("!isCancelRequest('')", !VoiceAssistant.isCancelRequest(""))
+
+        // MARK: ElevenLabsSpeaker.viseme
+        check("viseme(a) == 2", ElevenLabsSpeaker.viseme(for: "a") == 2)
+        check("viseme(e) == 1", ElevenLabsSpeaker.viseme(for: "e") == 1)
+        check("viseme(o) == 3", ElevenLabsSpeaker.viseme(for: "o") == 3)
+        check("viseme(m) == 0", ElevenLabsSpeaker.viseme(for: "m") == 0)
+        check("viseme(f) == 4", ElevenLabsSpeaker.viseme(for: "f") == 4)
+        check("viseme(v) == 4", ElevenLabsSpeaker.viseme(for: "v") == 4)
+        check("viseme(' ') == nil", ElevenLabsSpeaker.viseme(for: " ") == nil)
+        check("viseme('!') == nil", ElevenLabsSpeaker.viseme(for: "!") == nil)
+        check("viseme('á') == 2", ElevenLabsSpeaker.viseme(for: "á") == 2)
+
+        // MARK: ClaudeClient.parseOllamaText
+        let ollamaOK: [String: Any] = [
+            "choices": [["message": ["content": "  Resposta de teste  "]]]
+        ]
+        check("parseOllamaText sucesso (trim)",
+              ClaudeClient.parseOllamaText(ollamaOK) == "Resposta de teste")
+        check("parseOllamaText choices vazio",
+              ClaudeClient.parseOllamaText(["choices": []]) == nil)
+        check("parseOllamaText content vazio",
+              ClaudeClient.parseOllamaText(["choices": [["message": ["content": ""]]]]) == nil)
+
+        // MARK: ClaudeClient.parseAnthropicText
+        let anthropicOK: [[String: Any]] = [
+            ["type": "text", "text": "Olá"],
+            ["type": "tool_use", "id": "x"],
+            ["type": "text", "text": "mundo"]
+        ]
+        check("parseAnthropicText concatena blocos de texto",
+              ClaudeClient.parseAnthropicText(anthropicOK) == "Olá mundo")
+        let anthropicVazio: [[String: Any]] = [["type": "tool_use", "id": "x"]]
+        check("parseAnthropicText sem texto",
+              ClaudeClient.parseAnthropicText(anthropicVazio) == nil)
+
+        print("")
+        if failures == 0 {
+            print("✅ SELFTEST OK — \(passed) verificações passaram")
+            exit(0)
+        } else {
+            print("❌ SELFTEST FALHOU — \(failures) falha(s) de \(passed + failures)")
+            exit(1)
+        }
+    }
+}

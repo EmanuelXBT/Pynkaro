@@ -1,7 +1,6 @@
 import SwiftUI
 import AppKit
 import Combine
-import PynkaroCore
 
 /// App de menu bar. A UI do status item é feita com NSStatusItem (AppKit),
 /// mais confiável que o MenuBarExtra do SwiftUI no macOS 13.
@@ -31,6 +30,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Auto-teste da lógica pura (sem XCTest, roda sem Xcode):
+        //   ./.build/release/Pynkaro --selftest
+        if CommandLine.arguments.contains("--selftest") {
+            SelfTest.run()
+        }
         // Sem ícone no Dock; o app vive na menu bar.
         NSApp.setActivationPolicy(.accessory)
         print("🤖 Pynkaro — assistente de voz local para macOS")

@@ -193,7 +193,13 @@ final class VoiceAssistant: NSObject {
             }
         case .capturingQuestion:
             updateQuestion(from: text)
-        case .thinking, .speaking:
+        case .speaking:
+            // Durante a fala, permite cancelar com "esquece"/"cancela" —
+            // útil para interromper uma resposta errada antes do fim.
+            if isCancelRequest(text) {
+                cancelSpeaking()
+            }
+        case .thinking:
             break
         }
     }
@@ -308,7 +314,13 @@ final class VoiceAssistant: NSObject {
             print("📖 Resposta ampla (\(wordCount) palavras) — abrindo janela de leitura.")
             AnswerWindow.shared.show(reply)
         }
-        // A escuta fica parada enquanto fala — evita que o assistente ouça a si mesmo.
+        // Escuta ativa DURANTE a fala: permite interromper com "esquece".
+        // O onPartial filtra o cancelamento no estado .speaking; o risco de
+        // auto-cancelamento é baixo porque isCancelRequest exige a frase
+        // praticamente isolada (igual ou sufixo), não a palavra solta.
+        try? recognizer.startListening()
+        // A escuta fica ativa para cancelamento — evita ficar preso numa
+        // resposta errada longa.
         speaker.speak(reply) { [weak self] in
             guard let self else { return }
             self.avatar.hide()
@@ -317,5 +329,14 @@ final class VoiceAssistant: NSObject {
             print("👂 Aguardando \"\(wakeWords[0])\"...")
             self.restartListening()
         }
+    }
+
+    /// Interrompe a resposta em andamento por comando de voz.
+    /// O stop() do speaker dispara o completion, que esconde o avatar,
+    /// fecha a janela de leitura e volta ao estado de aguardar.
+    private func cancelSpeaking() {
+        guard state == .speaking else { return }
+        print("⏹️ Resposta interrompida (\"esquece\").")
+        speaker.stop()
     }
 }

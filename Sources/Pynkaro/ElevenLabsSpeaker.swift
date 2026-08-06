@@ -204,6 +204,18 @@ final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
         onMouthLevel?(0)
     }
 
+    /// Para a fala imediatamente: para o player, invalida os timers e
+    /// dispara o completion (o assistente volta a aguardar).
+    func stop() {
+        guard player?.isPlaying == true else { return }
+        stopMetering()
+        player?.stop()
+        player = nil
+        let callback = completion
+        completion = nil
+        callback?()
+    }
+
     private func fallbackSpeak(_ text: String) {
         print("   Usando a voz do sistema como fallback.")
         fallback.onMouthLevel = onMouthLevel

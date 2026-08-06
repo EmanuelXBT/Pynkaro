@@ -7,6 +7,10 @@ protocol Speaking: AnyObject {
     /// 0 = fechada, 1 = entreaberta, 2 = aberta.
     var onMouthLevel: ((Int) -> Void)? { get set }
     func speak(_ text: String, completion: @escaping () -> Void)
+    /// Interrompe a fala imediatamente (usado no cancelamento por voz).
+    /// Deve disparar o completion (ou pelo menos não deixar o assistente
+    /// preso no estado .speaking).
+    func stop()
 }
 
 /// Converte texto em fala com a voz pt-BR do sistema.
@@ -62,6 +66,13 @@ final class Speaker: NSObject, Speaking, AVSpeechSynthesizerDelegate {
         utterance.voice = voice
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
         synthesizer.speak(utterance)
+    }
+
+    /// Para a fala imediatamente; o delegate didCancel chama finish().
+    func stop() {
+        if synthesizer.isSpeaking {
+            synthesizer.stopSpeaking(at: .immediate)
+        }
     }
 
     private func finish() {

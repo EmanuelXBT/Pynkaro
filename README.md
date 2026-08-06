@@ -2,12 +2,13 @@
 
 Assistente de voz local para macOS, 100% self-hosted. Fica ouvindo o microfone; ao ouvir **"Píncaro"**,ou a palavra que desejar, captura a pergunta, transcreve localmente, envia para um **LLM local** e fala a resposta com a voz do **Kokoro** — **sem nenhuma assinatura de API**.
 
-Dois modos de operação:
+Três modos de operação:
 
 | Modo | LLM | TTS | Onde roda |
 |---|---|---|---|
-| **🍎 100% local no Mac** (novo) | Ollama no próprio Mac | Kokoro local (kokoro-onnx) | Tudo no MacBook |
+| **🍎 100% local no Mac** | Ollama no próprio Mac | Kokoro local (kokoro-onnx) | Tudo no MacBook |
 | **🖥️ Umbrel** | Ollama na Umbrel | Kokoro-FastAPI na Umbrel | Mac + servidor na LAN |
+| **☁️ API paga** | Anthropic (Claude) | ElevenLabs | Nuvem (requer chaves) |
 
 > Fork de [ralbuque/Pynkaro](https://github.com/ralbuque/Pynkaro) com foco em quem roda um servidor [Umbrel](https://umbrel.com): a versão original usa a API paga da Anthropic (Claude) e ElevenLabs; esta versão substitui ambas por serviços locais — no seu servidor **ou** no próprio Mac. [Clique aqui](https://github.com/EmanuelXBT/hermes-agent-umbrel) para ser redirecionado a um tutorial de instalação do Umbrel junto ao Hermes Agent.
 
@@ -18,7 +19,8 @@ Dois modos de operação:
 - **LLM local** — Ollama no Mac (`qwen2.5` ou **Bonsai-27B**) ou na Umbrel (`qwen2.5:3b`)
 - **Voz local** — Kokoro TTS (pt-BR nativo, ~82M params, qualidade próxima de TTS pagos) no Mac ou na Umbrel
 - **Instalação automática** — menu **"Instalar versão local"**: escolhe o modelo, o app instala tudo e reinicia configurado
-- **Avatar animado** — janela flutuante com lip sync (por amplitude no modo local/Umbrel)
+- **Auto-cura do Kokoro** — no startup o app verifica se o servidor TTS está de pé; se não, reinicia o LaunchAgent sozinho antes de cair no fallback
+- **Avatar animado** — janela flutuante com lip sync (por amplitude no modo local/Umbrel); o `avatar.png` também vira o **ícone do app** no `make_app.sh`
 - **Privacidade** — o único tráfego de rede é dentro da sua LAN (Mac ↔ Umbrel) ou nenhum (modo Mac)
 
 ## 📋 Requisitos
@@ -81,6 +83,7 @@ python3.12 -m venv ~/.pynkaro-tts
 # Config
 cat > ~/.config/pynkaro/config.json << 'EOF'
 {
+  "mode": "mac",
   "ollama_url": "http://localhost:11434/v1",
   "kokoro_url": "http://localhost:8888",
   "llm_model": "qwen2.5:7b",
@@ -91,7 +94,7 @@ EOF
 
 ### Voltar ao modo Umbrel
 
-Edite `~/.config/pynkaro/config.json` trocando `localhost` pelos endereços do servidor (ex.: `http://192.168.0.189:11434/v1`) e reinicie — ou use **Configurações → Ollama URL**.
+Use **Configurações → Servidor local (Umbrel)** e salve — ou edite `~/.config/pynkaro/config.json` trocando `localhost` pelos endereços do servidor (ex.: `http://192.168.0.189:11434/v1`) e o `mode` para `"umbrel"`, e reinicie.
 
 ## 🚀 Modo Umbrel (servidor na LAN)
 
@@ -109,6 +112,7 @@ Crie o arquivo `config.json` na raiz (é ignorado pelo git):
 ```bash
 cat > config.json << 'EOF'
 {
+  "mode": "umbrel",
   "ollama_url": "http://umbrel.local:11434/v1",
   "kokoro_url": "http://umbrel.local:8880",
   "llm_model": "qwen2.5:3b",
@@ -148,13 +152,24 @@ Na primeira execução o macOS pede permissões de **Microfone** e **Reconhecime
 3. Ele transcreve no Mac, envia o texto para o Ollama na Umbrel, e responde com a voz do Kokoro
 4. O histórico da conversa é mantido durante a sessão
 
+### Como o assistente responde
+
+- **Idioma:** o modelo pode raciocinar em inglês internamente, mas **toda resposta é em português do Brasil** — sem misturar outros idiomas, exceto palavras-<empréstimo</em> sem tradução natural (`software`, `cache`, `feedback`...)
+- **Tom:** claro, direto e profissional; humor **opcional e sutil** — só aparece se a pergunta for claramente descontraída
+- **Tamanho:** uma única frase, no máximo ~40 palavras (adequado para voz)
+- O comportamento é definido pelo **system prompt** no `ClaudeClient.swift` (recomputado a cada pergunta com a data/hora)
+
 ## 🍎 App de menu bar (sem terminal)
 
 ```bash
 ./make_app.sh          # gera Pynkaro.app e Pynkaro.dmg
 ```
 
-O app vive na menu bar (sem ícone no Dock). Rodando como `.app`, o `config.json` é lido de `~/.config/pynkaro/config.json` — copie o arquivo para lá:
+O app vive na menu bar (sem ícone no Dock). O `make_app.sh` também:
+- **Gera o ícone do app** (`AppIcon.icns`) a partir do `avatar.png` automaticamente (sips + iconutil, 16px a 1024px retina) e o registra no Info.plist — o avatar vira o ícone do Finder/Dock
+- Copia os recursos do avatar (`avatar_mid.png`, `avatar_open.png`, etc.) e o `tools/kokoro_local_server.py` para dentro do bundle
+
+Rodando como `.app`, o `config.json` é lido de `~/.config/pynkaro/config.json` — copie o arquivo para lá:
 
 ```bash
 mkdir -p ~/.config/pynkaro
@@ -169,7 +184,8 @@ cp config.json ~/.config/pynkaro/config.json
 
 | Campo | Descrição |
 |---|---|
-| `ollama_url` | Base URL do Ollama (ex.: `http://umbrel.local:11434/v1`) — **ativa o modo Umbrel** |
+| `mode` | Modo explícito: `"mac"` \| `"umbrel"` \| `"api"` — gravação automática pelas Configurações; sem o campo, o app infere pela URL (localhost → mac, IP LAN → umbrel, ausente → api) |
+| `ollama_url` | Base URL do Ollama (ex.: `http://umbrel.local:11434/v1`) — **ativa o modo local/Umbrel** |
 | `kokoro_url` | Base URL do Kokoro TTS (ex.: `http://umbrel.local:8880`) |
 | `llm_model` | Modelo do Ollama (padrão: `qwen2.5:7b`) |
 | `kokoro_voice` | Voz pt-BR do Kokoro (padrão: `pm_alex`) |
@@ -200,9 +216,13 @@ cp config.json ~/.config/pynkaro/config.json
 | **LLM** | Ollama (se `ollama_url`/`PYNKARO_LLM_BASE_URL`) → Anthropic | — |
 | **Voz** | Kokoro (se `kokoro_url`/`PYNKARO_KOKORO_URL`) → ElevenLabs → voz do sistema | — |
 
-- **Modo Umbrel ativo** = `ollama_url` definido → o onboarding de chaves é pulado, nenhuma chave paga é necessária
+- **Modo local (Mac)** = `mode: "mac"` (ou URL `localhost`) → LLM e Kokoro rodam no próprio Mac, sem chaves
+- **Modo Umbrel ativo** = `mode: "umbrel"` (ou URL de IP LAN) → o onboarding de chaves é pulado, nenhuma chave paga é necessária
+- **Modo API** = `mode: "api"` (ou sem `ollama_url`) → Anthropic + ElevenLabs
 - Sem `kokoro_url` e sem chave ElevenLabs → voz do sistema do Mac (gratuita)
 
+> **Configurações:** janela com 3 abas (**Servidor local (Mac) / Servidor local (Umbrel) / API paga**). O campo `mode` é sempre gravado, então a aba correta abre sozinha — um config local do Mac não aparece mais na aba Umbrel. Salvar reinicia o app (o `Config.shared` é estático).
+>
 > **Prioridade de leitura do config:** `~/.config/pynkaro/config.json` (onde o `.app` e o "Instalar versão local" gravam) **vence** o `config.json` da raiz do projeto. Se o app parecer usar o modo errado, confira qual arquivo está sendo lido no log (`🔑 Configuração carregada de ...`).
 
 ## 🖼️ Avatar na tela
@@ -219,8 +239,13 @@ Salve a imagem do assistente como `avatar.png` na raiz do projeto (ou `~/.config
 |---|---|
 | Pediu chave da Anthropic | O `ollama_url` não está no `config.json` (ou não foi lido — confirme com `cat config.json`) |
 | **"Falha ao instalar Kokoro (exit 1)"** | Python do sistema é 3.9 — instale `brew install python@3.12` e remova os venvs antigos (`rm -rf ~/.pynkaro-tts ~/.pynkaro-mlx`); rode "Instalar e configurar" de novo |
+| **Kokoro "Could not connect" no modo Mac** | O venv `~/.pynkaro-tts` pode estar com Python 3.9 ou sem numpy — o instalador agora detecta e recria sozinho; verifique `tail ~/.pynkaro-tts/server.log` |
+| **"Falha ao registrar o LaunchAgent"** | O agente já estava carregado — o app agora faz retry + kickstart; manual: `launchctl bootout gui/$(id -u)/com.pynkaro.kokoro; sleep 0.5; launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.pynkaro.kokoro.plist; launchctl kickstart -k gui/$(id -u)/com.pynkaro.kokoro` |
+| **Config do Mac aparece na aba Umbrel** | O campo `mode` do config.json decide a aba; reabra as Configurações depois de salvar (ou reinicie o app) |
 | **App fala "rodando no Umbrel" no modo Mac** | `~/.config/pynkaro/config.json` tem prioridade — confira o log `🔑 Configuração carregada de ...` e o conteúdo do arquivo |
 | Kokoro não responde | Confirme a porta exposta: `curl -X POST http://IP:8880/v1/audio/speech -H "Content-Type: application/json" -d '{"model":"kokoro","input":"teste","voice":"pm_alex"}'` |
+| **Bonsai-27B demora muito (modo Mac)** | GGUF Q1_0 roda na CPU — use `qwen2.5:7b` para uso diário ou a variante MLX do 27B ("Instalar versão local" → Bonsai-27B 1-bit/Ternary via MLX) |
+| **`ollama rm` "model not found"** | Copie o nome exato do `ollama list` — um ponto extra no final (`Q1_0.`) faz o comando falhar |
 | Ollama lento | Use modelo menor (`qwen2.5:3b` em vez de `7b`); o timeout do Ollama é 120 s |
 | Wake word não detectada | Ajuste do ditado pt-BR; teste `PYNKARO_WAKE_WORD` |
 | Erro de build (Rive/XCFramework) | `swift package reset && rm -rf ~/Library/Caches/org.swift.swiftpm .build && swift package resolve && swift build` |

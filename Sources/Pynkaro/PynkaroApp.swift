@@ -226,16 +226,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // autoresizingMask do hosting + minWidth/minHeight na SwiftUI
             // view fazem o conteúdo acompanhar o tamanho.
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 720, height: 660),
+                contentRect: NSRect(x: 0, y: 0, width: 840, height: 660),
                 styleMask: [.titled, .closable, .resizable],
                 backing: .buffered,
                 defer: false)
             let hosting = NSHostingView(rootView: view)
-            hosting.frame = NSRect(x: 0, y: 0, width: 720, height: 660)
+            hosting.frame = NSRect(x: 0, y: 0, width: 840, height: 660)
             hosting.autoresizingMask = [NSView.AutoresizingMask.width, NSView.AutoresizingMask.height]
             window.contentView = hosting
             window.title = "Pynkaro — Configuração local"
-            window.minSize = NSSize(width: 700, height: 620)
+            window.minSize = NSSize(width: 800, height: 620)
             window.isReleasedWhenClosed = false
             window.center()
             setupWindow = window
@@ -505,18 +505,20 @@ struct SettingsView: View {
             }
     }
 
+    /// Rótulo do idioma da voz no idioma nativo + sigla oficial do local
+    /// (ex.: "English (USA)", "Español (ES)", "日本語 (JP)").
     private func voiceLabel(_ id: String) -> String {
         let lang: String
         switch id.prefix(2) {
-        case "af", "am": lang = "Inglês (EUA)"
-        case "bf", "bm": lang = "Inglês (RU)"
-        case "ef", "em": lang = "Espanhol"
-        case "ff": lang = "Francês"
-        case "hf", "hm": lang = "Hindi"
-        case "if", "im": lang = "Italiano"
-        case "jf", "jm": lang = "Japonês"
+        case "af", "am": lang = "English (USA)"
+        case "bf", "bm": lang = "English (UK)"
+        case "ef", "em": lang = "Español (ES)"
+        case "ff": lang = "Français (FR)"
+        case "hf", "hm": lang = "हिंदी (IN)"
+        case "if", "im": lang = "Italiano (IT)"
+        case "jf", "jm": lang = "日本語 (JP)"
         case "pf", "pm": lang = "Português (BR)"
-        case "zf", "zm": lang = "Chinês"
+        case "zf", "zm": lang = "中國人 (CN)"
         default: lang = "Outro"
         }
         return "\(lang) — \(voiceDisplayName(id))"

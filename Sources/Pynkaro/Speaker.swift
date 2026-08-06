@@ -6,6 +6,9 @@ protocol Speaking: AnyObject {
     /// Nível de abertura da boca do avatar durante a fala:
     /// 0 = fechada, 1 = entreaberta, 2 = aberta.
     var onMouthLevel: ((Int) -> Void)? { get set }
+    /// Progresso da fala no texto: fração 0-1 do que já foi falado,
+    /// emitida conforme o áudio toca (sincronizada com o player).
+    var onSpeechProgress: ((Double) -> Void)? { get set }
     func speak(_ text: String, completion: @escaping () -> Void)
     /// Interrompe a fala imediatamente (usado no cancelamento por voz).
     /// Deve disparar o completion (ou pelo menos não deixar o assistente
@@ -17,11 +20,13 @@ protocol Speaking: AnyObject {
 final class Speaker: NSObject, Speaking, AVSpeechSynthesizerDelegate {
 
     var onMouthLevel: ((Int) -> Void)?
+    var onSpeechProgress: ((Double) -> Void)?
 
     private let synthesizer = AVSpeechSynthesizer()
     private let voice: AVSpeechSynthesisVoice?
     private var completion: (() -> Void)?
     private var mouthCloseTimer: Timer?
+    private var currentText = ""
 
     override init() {
         voice = Speaker.bestVoice()
@@ -62,6 +67,7 @@ final class Speaker: NSObject, Speaking, AVSpeechSynthesizerDelegate {
 
     func speak(_ text: String, completion: @escaping () -> Void) {
         self.completion = completion
+        currentText = text
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = voice
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
@@ -86,7 +92,8 @@ final class Speaker: NSObject, Speaking, AVSpeechSynthesizerDelegate {
     }
 
     /// O AVSpeechSynthesizer não expõe medição de volume; usa o evento
-    /// "vai falar este trecho" (aprox. por palavra) para abrir e fechar a boca.
+    /// "vai falar este trecho" (aprox. por palavra) para abrir e fechar a boca
+    /// e para emitir o progresso no texto (fração do range / total).
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
                            willSpeakRangeOfSpeechString characterRange: NSRange,
                            utterance: AVSpeechUtterance) {
@@ -95,6 +102,11 @@ final class Speaker: NSObject, Speaking, AVSpeechSynthesizerDelegate {
             self.mouthCloseTimer?.invalidate()
             self.mouthCloseTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { [weak self] _ in
                 self?.onMouthLevel?(0)
+            }
+            let total = self.currentText.utf16.count
+            if total > 0 {
+                let spoken = Double(characterRange.location + characterRange.length)
+                self.onSpeechProgress?(min(1.0, spoken / Double(total)))
             }
         }
     }

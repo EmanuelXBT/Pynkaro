@@ -52,8 +52,13 @@ final class AvatarWindow {
     private var windowSize = NSSize.zero
 
     // MARK: Legenda (pergunta/resposta)
+    /// Pílula translúcida na base do avatar com o texto rolante: o texto
+    /// completo é carregado e o scroll acompanha o progresso da fala
+    /// (onSpeechProgress), subindo e liberando espaço para o texto novo.
     private var captionBox: NSView?
-    private var captionLabel: NSTextField?
+    private var captionScroll: NSScrollView?
+    private var captionText: NSTextView?
+    private var captionFullText = ""
 
     init() {
         // 1) Rig Rive, se avatar.riv existir.
@@ -130,21 +135,39 @@ final class AvatarWindow {
         view.setFrameOrigin(viewStartOrigin)
         container.addSubview(view)
 
-        // Legenda: pílula translúcida sobreposta à base do avatar.
+        // Legenda: pílula translúcida sobreposta à base do avatar com
+        // scroll vertical — o texto acompanha o progresso da fala.
         let box = NSView()
         box.wantsLayer = true
         box.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.62).cgColor
         box.layer?.cornerRadius = 12
         box.alphaValue = 0
-        let label = NSTextField(wrappingLabelWithString: "")
-        label.textColor = .white
-        label.font = .systemFont(ofSize: 16, weight: .medium)
-        label.alignment = .center
-        label.maximumNumberOfLines = 6
-        box.addSubview(label)
+
+        let scroll = NSScrollView()
+        scroll.drawsBackground = false
+        scroll.hasVerticalScroller = false
+        scroll.autohidesScrollers = true
+        scroll.borderType = .noBorder
+
+        let text = NSTextView()
+        text.isEditable = false
+        text.isSelectable = false
+        text.drawsBackground = false
+        text.textColor = .white
+        text.font = .systemFont(ofSize: 16, weight: .medium)
+        text.alignment = .center
+        text.textContainerInset = NSSize(width: 14, height: 10)
+        text.isVerticallyResizable = true
+        text.isHorizontallyResizable = false
+        text.autoresizingMask = [.width]
+        text.textContainer?.widthTracksTextView = true
+        scroll.documentView = text
+
+        box.addSubview(scroll)
         container.addSubview(box, positioned: .above, relativeTo: view)
         captionBox = box
-        captionLabel = label
+        captionScroll = scroll
+        captionText = text
 
         window.contentView = container
         animatedView = view
@@ -232,10 +255,13 @@ final class AvatarWindow {
     // MARK: - Legenda
 
     /// Mostra o texto como legenda na base do avatar; nil ou vazio esconde.
-    /// O tamanho da pílula se ajusta ao texto (até 6 linhas).
+    /// O tamanho da pílula se ajusta ao texto (com scroll vertical se passar
+    /// do limite de altura). Usa o mesmo mecanismo do texto rolante.
     func setCaption(_ text: String?) {
         DispatchQueue.main.async {
-            guard let box = self.captionBox, let label = self.captionLabel else { return }
+            guard let box = self.captionBox,
+                  let scroll = self.captionScroll,
+                  let textView = self.captionText else { return }
             let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !trimmed.isEmpty else {
                 NSAnimationContext.runAnimationGroup { context in
@@ -245,18 +271,10 @@ final class AvatarWindow {
                 return
             }
 
-            label.stringValue = trimmed
-            let maxWidth = self.windowSize.width - 64
-            let textSize = label.cell?.cellSize(
-                forBounds: NSRect(x: 0, y: 0, width: maxWidth, height: 800)
-            ) ?? .zero
-            let width = ceil(min(textSize.width, maxWidth))
-            let height = ceil(textSize.height)
-            label.frame = NSRect(x: 14, y: 9, width: width, height: height)
-            box.frame = NSRect(x: (self.windowSize.width - (width + 28)) / 2,
-                               y: 10,
-                               width: width + 28,
-                               height: height + 18)
+            self.captionFullText = trimmed
+            textView.string = trimmed
+            textView.scrollToBeginningOfDocument(nil)
+            self.layoutCaptionBox(scroll: scroll, textView: textView, box: box)
 
             if box.alphaValue < 1 {
                 NSAnimationContext.runAnimationGroup { context in
@@ -265,6 +283,82 @@ final class AvatarWindow {
                 }
             }
         }
+    }
+
+    /// Prepara o texto da resposta para a fala, mas MANTÉM a pílula oculta:
+    /// ela só aparece quando o primeiro gatilho de progresso da voz chegar
+    /// (updateSpeechProgress), evitando o texto na tela antes do áudio.
+    func prepareSpeechText(_ text: String) {
+        DispatchQueue.main.async {
+            guard let box = self.captionBox,
+                  let scroll = self.captionScroll,
+                  let textView = self.captionText else { return }
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return }
+            self.captionFullText = trimmed
+            textView.string = trimmed
+            textView.scrollToBeginningOfDocument(nil)
+            self.layoutCaptionBox(scroll: scroll, textView: textView, box: box)
+            box.alphaValue = 0
+        }
+    }
+
+    /// Faz a pílula aparecer (se ainda oculta) e rola o texto conforme a
+    /// fração da fala já tocada (0-1), sincronizada com o áudio. O texto
+    /// sobe e some no topo, liberando espaço para o texto novo embaixo.
+    func updateSpeechProgress(_ fraction: Double) {
+        DispatchQueue.main.async {
+            guard let box = self.captionBox,
+                  let textView = self.captionText,
+                  !self.captionFullText.isEmpty else { return }
+            if box.alphaValue < 1 {
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.15
+                    box.animator().alphaValue = 1
+                }
+            }
+            let total = self.captionFullText.utf16.count
+            guard total > 0 else { return }
+            let range = AvatarWindow.speechRange(total: total, fraction: fraction)
+            textView.scrollRangeToVisible(range)
+        }
+    }
+
+    /// Range de texto visível para uma fração da fala (0-1): janela que
+    /// começa pouco antes da posição falada e se estende para o texto novo.
+    /// Estática e sem estado para ser testável (SelfTest).
+    static func speechRange(total: Int, fraction: Double) -> NSRange {
+        guard total > 0 else { return NSRange(location: 0, length: 0) }
+        let target = min(total, max(0, Int(Double(total) * fraction)))
+        let start = max(0, target - 30)
+        let length = min(total - start, max(40, total / 10) + 30)
+        return NSRange(location: start, length: length)
+    }
+
+    /// Dimensiona a pílula ao conteúdo (largura fixa do container, altura
+    /// limitada com scroll vertical para textos longos).
+    private func layoutCaptionBox(scroll: NSScrollView,
+                                  textView: NSTextView,
+                                  box: NSView) {
+        let maxWidth = max(160, self.windowSize.width - 64)
+        let maxHeight: CGFloat = 150
+        // Altura estimada: quantas linhas o texto ocuparia na largura máxima.
+        textView.frame = NSRect(x: 0, y: 0, width: maxWidth, height: 600)
+        textView.layoutManager?.ensureLayout(for: textView.textContainer!)
+        let used = textView.layoutManager?.usedRect(for: textView.textContainer!) ?? .zero
+        let height = min(maxHeight, ceil(used.height) + 20)
+        let width = maxWidth
+
+        scroll.frame = NSRect(x: 0, y: 0, width: width, height: height)
+        textView.frame = NSRect(x: 0, y: 0, width: width, height: max(600, used.height + 20))
+        textView.isVerticallyResizable = true
+        textView.textContainer?.containerSize = NSSize(width: width, height: .greatestFiniteMagnitude)
+        textView.textContainer?.widthTracksTextView = true
+
+        box.frame = NSRect(x: (self.windowSize.width - width) / 2,
+                           y: 10,
+                           width: width,
+                           height: height)
     }
 
     // MARK: - Entrada e saída
@@ -298,7 +392,8 @@ final class AvatarWindow {
                 // na próxima aparição.
                 self.setMouth(0)
                 self.captionBox?.alphaValue = 0
-                self.captionLabel?.stringValue = ""
+                self.captionText?.string = ""
+                self.captionFullText = ""
                 self.animatedView?.setFrameOrigin(self.viewStartOrigin)
             })
         }

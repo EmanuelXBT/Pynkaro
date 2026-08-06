@@ -294,10 +294,11 @@ final class VoiceAssistant: NSObject {
 
         // Apresentação pré-definida ("se apresente"): responde o roteiro
         // fixo do IntroScript SEM consultar o LLM — rápido, determinístico
-        // e sempre igual (útil para gravar vídeo de demonstração).
+        // e sempre igual (útil para gravar vídeo de demonstração). Sem
+        // janela de leitura (AnswerWindow): o texto rola no caption.
         if IntroScript.matches(q) {
             Log.debug("🎬 IntroScript: apresentação pré-definida (sem LLM).")
-            handleAnswer(.success(IntroScript.text))
+            handleAnswer(.success(IntroScript.text), showAnswerWindow: false)
             return
         }
 
@@ -306,7 +307,7 @@ final class VoiceAssistant: NSObject {
         }
     }
 
-    private func handleAnswer(_ result: Result<String, Error>) {
+    private func handleAnswer(_ result: Result<String, Error>, showAnswerWindow: Bool = true) {
         let reply: String
         switch result {
         case .success(let text):
@@ -318,11 +319,14 @@ final class VoiceAssistant: NSObject {
 
         Log.debug("💬 \(reply)")
         state = .speaking
-        avatar.setCaption(reply)
+        // Texto preparado mas oculto: só aparece quando a voz realmente
+        // começa (primeiro gatilho de progresso) e rola conforme a fala.
+        avatar.prepareSpeechText(reply)
         // Resposta ampla (acima do limite de fala curta): mostra o texto
-        // completo na janela de leitura enquanto fala o resumo.
+        // completo na janela de leitura enquanto fala o resumo — exceto
+        // quando o caller suprime (ex.: IntroScript, que usa o caption).
         let wordCount = reply.split(whereSeparator: \.isWhitespace).count
-        if wordCount > 45 {
+        if showAnswerWindow && wordCount > 45 {
             Log.debug("📖 Resposta ampla (\(wordCount) palavras) — abrindo janela de leitura.")
             AnswerWindow.shared.show(reply)
         }
@@ -331,10 +335,16 @@ final class VoiceAssistant: NSObject {
         // auto-cancelamento é baixo porque isCancelRequest exige a frase
         // praticamente isolada (igual ou sufixo), não a palavra solta.
         try? recognizer.startListening()
+        // Progresso da fala → rolagem do texto na tela (sincronizada com o
+        // áudio do Kokoro, voz do sistema ou ElevenLabs).
+        speaker.onSpeechProgress = { [weak self] fraction in
+            DispatchQueue.main.async { self?.avatar.updateSpeechProgress(fraction) }
+        }
         // A escuta fica ativa para cancelamento — evita ficar preso numa
         // resposta errada longa.
         speaker.speak(reply) { [weak self] in
             guard let self else { return }
+            self.speaker.onSpeechProgress = nil
             self.avatar.hide()
             AnswerWindow.shared.hide()
             self.state = .waitingWakeWord

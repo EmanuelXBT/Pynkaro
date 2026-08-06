@@ -6,10 +6,12 @@ import AVFoundation
 final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
 
     var onMouthLevel: ((Int) -> Void)?
+    var onSpeechProgress: ((Double) -> Void)?
 
     private let apiKey: String
     private let voiceId: String
     private let model: String
+    private var currentText = ""
 
     /// Fallback local; lazy para só inicializar (e imprimir) se for necessário.
     private lazy var fallback = Speaker()
@@ -43,6 +45,7 @@ final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
 
     func speak(_ text: String, completion: @escaping () -> Void) {
         self.completion = completion
+        currentText = text
 
         // O endpoint with-timestamps retorna JSON com o áudio em base64 e o
         // instante de cada caractere — usado para sincronizar a boca (visemas).
@@ -174,6 +177,10 @@ final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
                 self.onMouthLevel?(self.mouthEvents[self.mouthEventIndex].level)
                 self.mouthEventIndex += 1
             }
+            // Progresso no texto: proporção do tempo de áudio tocado.
+            if player.duration > 0 {
+                self.onSpeechProgress?(min(1.0, player.currentTime / player.duration))
+            }
         }
     }
 
@@ -193,6 +200,10 @@ final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
                 level = 0
             }
             self.onMouthLevel?(level)
+            // Progresso no texto (sem timestamps): proporção do áudio tocado.
+            if player.duration > 0 {
+                self.onSpeechProgress?(min(1.0, player.currentTime / player.duration))
+            }
         }
     }
 
@@ -219,6 +230,7 @@ final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
     private func fallbackSpeak(_ text: String) {
         Log.error("   Usando a voz do sistema como fallback.")
         fallback.onMouthLevel = onMouthLevel
+        fallback.onSpeechProgress = onSpeechProgress
         let callback = completion
         completion = nil
         fallback.speak(text) { callback?() }

@@ -9,10 +9,12 @@ import AVFoundation
 final class KokoroSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
 
     var onMouthLevel: ((Int) -> Void)?
+    var onSpeechProgress: ((Double) -> Void)?
 
     private let baseURL: String
     private let voice: String
     private let model: String
+    private var currentText = ""
 
     /// Fallback local; lazy para só inicializar (e imprimir) se for necessário.
     private lazy var fallback = Speaker()
@@ -41,6 +43,7 @@ final class KokoroSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
 
     func speak(_ text: String, completion: @escaping () -> Void) {
         self.completion = completion
+        currentText = text
 
         // Endpoint OpenAI-compatível do Kokoro-FastAPI.
         let endpoint = baseURL.hasSuffix("/v1")
@@ -110,6 +113,11 @@ final class KokoroSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
                 level = 0
             }
             self.onMouthLevel?(level)
+            // Progresso no texto: proporção do tempo de áudio já tocado.
+            // Sem timestamps por caractere no Kokoro, é a melhor estimativa.
+            if player.duration > 0 {
+                self.onSpeechProgress?(min(1.0, player.currentTime / player.duration))
+            }
         }
     }
 
@@ -136,6 +144,7 @@ final class KokoroSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
     private func fallbackSpeak(_ text: String) {
         Log.error("   Usando a voz do sistema como fallback.")
         fallback.onMouthLevel = onMouthLevel
+        fallback.onSpeechProgress = onSpeechProgress
         let callback = completion
         completion = nil
         fallback.speak(text) { callback?() }

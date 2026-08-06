@@ -90,6 +90,18 @@ enum SelfTest {
         check("!IntroScript('toca uma música')", !IntroScript.matches("toca uma música"))
         check("!IntroScript('')", !IntroScript.matches(""))
 
+        // MARK: AvatarWindow.speechRange (rolagem sincronizada com a fala)
+        check("speechRange(total:0) vazio",
+              AvatarWindow.speechRange(total: 0, fraction: 0.5) == NSRange(location: 0, length: 0))
+        check("speechRange início (fração 0)",
+              AvatarWindow.speechRange(total: 500, fraction: 0).location == 0)
+        check("speechRange avança com a fração",
+              AvatarWindow.speechRange(total: 500, fraction: 0.5).location == 220)
+        check("speechRange nunca ultrapassa o total",
+              AvatarWindow.speechRange(total: 500, fraction: 1).location + AvatarWindow.speechRange(total: 500, fraction: 1).length <= 500)
+        check("speechRange clampa fração >1",
+              AvatarWindow.speechRange(total: 500, fraction: 2).location <= 500)
+
         print("")
         if failures == 0 {
             print("✅ SELFTEST OK — \(passed) verificações passaram")

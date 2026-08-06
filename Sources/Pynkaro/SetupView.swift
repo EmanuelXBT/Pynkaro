@@ -64,12 +64,17 @@ struct SetupView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     if !blockedOptions.isEmpty {
+                        let blockedText = [
+                            "Bonsai-27B Q1_0 via Ollama: Ocupa ~4-5 GB de RAM | Qualidade muito reduzida devido à quantização em 1-bit.",
+                            "Bonsai-27B 1-bit via MLX (M4): Ocupa ~4-6 GB de RAM | Rápido, mas estoura a memória ao expandir o contexto em Macs de 16 GB.",
+                            "Bonsai-27B Ternary 2-bit via MLX: Ocupa ~8-9 GB de RAM | 95% da qualidade do FP16, mas deixa pouca memória livre para o sistema."
+                        ]
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("⚠️ Ocultas — RAM insuficiente para este Mac (\(ram) GB):")
+                            Text("⚠️ Ocultas — Modelos de 27B (Requer 32 GB+ de RAM para uso fluído). GPU M4 Pro/Max ou superior recomendado para maior velocidade:")
                                 .font(.caption).bold()
                                 .foregroundStyle(.orange)
-                            ForEach(blockedOptions) { option in
-                                Text("• \(option.label): \(option.ramNote)")
+                            ForEach(blockedText, id: \.self) { line in
+                                Text(line)
                                     .font(.caption)
                                     .foregroundStyle(.orange)
                                     .fixedSize(horizontal: false, vertical: true)

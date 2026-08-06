@@ -71,6 +71,11 @@ extension SetupOption {
                     serverLabel: "com.pynkaro.mlx1",
                     serverCommand: ["\(NSHomeDirectory())/.pynkaro-mlx/bin/mlx_lm.server",
                                     "--model", "prism-ml/Bonsai-27B-mlx-1bit",
+                                    // Bind explícito em loopback: o default do
+                                    // mlx_lm.server já é 127.0.0.1 (verificado
+                                    // no cli oficial do mlx-lm), mas o pin
+                                    // protege contra mudança de default futuro.
+                                    "--host", "127.0.0.1",
                                     "--port", "11435"],
                     minRAMGB: 32),
         SetupOption(id: "bonsaiMlxTer",
@@ -83,6 +88,7 @@ extension SetupOption {
                     serverLabel: "com.pynkaro.mlx2",
                     serverCommand: ["\(NSHomeDirectory())/.pynkaro-mlx/bin/mlx_lm.server",
                                     "--model", "prism-ml/Ternary-Bonsai-27B-mlx-2bit",
+                                    "--host", "127.0.0.1",
                                     "--port", "11435"],
                     minRAMGB: 32),
     ]

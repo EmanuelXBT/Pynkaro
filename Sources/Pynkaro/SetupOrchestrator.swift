@@ -108,6 +108,7 @@ final class SetupOrchestrator: ObservableObject {
             let out = runner.runSync("command -v \(candidate) && \(candidate) --version")
             if out.exitCode == 0 { return candidate }
         }
+        log("⚠️ Nenhum Python >= 3.10 encontrado. Instale com: brew install python@3.12")
         return "python3"
     }
 
@@ -215,10 +216,17 @@ final class SetupOrchestrator: ObservableObject {
         currentStep = "Instalando Kokoro"
         let venvPython = "\(NSHomeDirectory())/.pynkaro-tts/bin/python3"
         let scriptPath = "\(NSHomeDirectory())/.pynkaro-tts/kokoro_local_server.py"
-        if fm.fileExists(atPath: venvPython) && fm.fileExists(atPath: scriptPath) {
+        if fm.fileExists(atPath: venvPython) && fm.fileExists(atPath: scriptPath)
+            && isKokoroVenvUsable() {
             log("✅ Kokoro já instalado.")
             startKokoroServer(completion: completion)
         } else {
+            // Venv existe mas está quebrado (ex.: criado com python3.9 do CLT
+            // antes do resolvePython, sem numpy) → recria do zero.
+            if fm.fileExists(atPath: venvPython) {
+                log("♻️ Venv do Kokoro inválido (Python < 3.10 ou numpy ausente). Recriando...")
+                _ = runner.runSync("rm -rf ~/.pynkaro-tts")
+            }
             log("📦 Criando venv e instalando kokoro-onnx (pode demorar)...")
             let python = resolvePython()
             log("🐍 Usando \(python) (\(runner.runSync("\(python) --version").text.trimmingCharacters(in: .whitespacesAndNewlines)))")
@@ -233,6 +241,18 @@ final class SetupOrchestrator: ObservableObject {
                 self.startKokoroServer(completion: completion)
             }
         }
+    }
+
+    /// Valida que o venv do Kokoro é utilizável: Python >= 3.10 (kokoro-onnx
+    /// exige) e numpy instalado (o servidor importa numpy no boot). Um venv
+    /// criado com o python3.9 do Command Line Tools existe mas quebra no
+    /// runtime — por isso a validação vai além do fileExists.
+    private func isKokoroVenvUsable() -> Bool {
+        let python = "\(NSHomeDirectory())/.pynkaro-tts/bin/python3"
+        let ver = runner.runSync("\"\(python)\" -c 'import sys; print(sys.version_info >= (3, 10))'").text
+        guard ver.contains("True") else { return false }
+        let numpy = runner.runSync("\"\(python)\" -c 'import numpy'")
+        return numpy.exitCode == 0
     }
 
     private func copyKokoroScript(to destination: String) {

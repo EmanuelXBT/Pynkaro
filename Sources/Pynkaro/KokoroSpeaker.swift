@@ -35,7 +35,8 @@ final class KokoroSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
         self.voice = env["PYNKARO_KOKORO_VOICE"] ?? Config.kokoroVoice
         self.model = env["PYNKARO_KOKORO_MODEL"] ?? "kokoro"
         super.init()
-        print("🗣️ Voz: Kokoro (Umbrel \(baseURL), voice \(voice))")
+        let label = Config.operationMode == .mac ? "local (Mac)" : "Umbrel"
+        print("🗣️ Voz: Kokoro (\(label) \(baseURL), voice \(voice))")
     }
 
     func speak(_ text: String, completion: @escaping () -> Void) {

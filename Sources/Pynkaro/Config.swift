@@ -23,6 +23,10 @@ struct Config: Decodable {
     var kokoroVoice: String?
     var searxngUrl: String?
     var wakeWords: [String]?
+    /// Modo de operação explícito: "mac" | "umbrel" | "api". Gravado pelas
+    /// Configurações/Instalador. Configs antigos sem o campo são inferidos
+    /// pela URL (localhost → Mac, IP LAN → Umbrel, ausente → API).
+    var mode: String?
 
     enum CodingKeys: String, CodingKey {
         case anthropicApiKey = "anthropic_api_key"
@@ -33,6 +37,7 @@ struct Config: Decodable {
         case kokoroVoice = "kokoro_voice"
         case searxngUrl = "searxng_url"
         case wakeWords = "wake_words"
+        case mode = "mode"
     }
 
     static let shared = load()
@@ -91,6 +96,31 @@ struct Config: Decodable {
         shared.wakeWords
     }
 
+    /// Modos de operação suportados pelo Pynkaro.
+    enum PynkaroMode: String {
+        /// Tudo roda no próprio Mac (Ollama local + Kokoro via LaunchAgent).
+        case mac = "mac"
+        /// Serviços na Umbrel da rede (Ollama/Kokoro/SearXNG via LAN).
+        case umbrel = "umbrel"
+        /// APIs pagas (Anthropic + ElevenLabs).
+        case api = "api"
+    }
+
+    /// Modo atual. Usa o campo `mode` do config quando presente; para configs
+    /// antigos (sem o campo), infere pela URL: localhost → Mac, IP de rede →
+    /// Umbrel, ausente → API. Essa inferência é o que elimina o conflito
+    /// "config do Mac aparecendo na aba Umbrel".
+    static var operationMode: PynkaroMode {
+        if let raw = shared.mode, let mode = PynkaroMode(rawValue: raw) {
+            return mode
+        }
+        guard let url = ollamaBaseURL else { return .api }
+        if url.contains("localhost") || url.contains("127.0.0.1") {
+            return .mac
+        }
+        return .umbrel
+    }
+
     private static func env(_ key: String) -> String? {
         let value = ProcessInfo.processInfo.environment[key]
         return (value?.isEmpty ?? true) ? nil : value
@@ -108,15 +138,18 @@ struct Config: Decodable {
                        account: "elevenlabs_api_key")
     }
 
-    // MARK: - Gravação do config.json (opções do modo Umbrel)
+    // MARK: - Gravação do config.json (opções de servidor)
 
     /// Salva as opções no config.json de ~/.config/pynkaro/. O app relê o
     /// arquivo na próxima inicialização (Config.shared é estático).
     /// Campos vazios são omitidos — sem `ollama_url` o app volta ao modo API.
-    static func saveUmbrelOptions(ollamaUrl: String?, kokoroUrl: String?,
+    /// `mode` é sempre gravado para o seletor de Configurações abrir a aba
+    /// correta (mac/umbrel/api), eliminando a ambiguidade da inferência por URL.
+    static func saveUmbrelOptions(mode: PynkaroMode,
+                                  ollamaUrl: String?, kokoroUrl: String?,
                                   searxngUrl: String?, llmModel: String?,
                                   kokoroVoice: String?, wakeWords: [String]?) {
-        var dict: [String: Any] = [:]
+        var dict: [String: Any] = ["mode": mode.rawValue]
         if let ollamaUrl, !ollamaUrl.isEmpty { dict["ollama_url"] = ollamaUrl }
         if let kokoroUrl, !kokoroUrl.isEmpty { dict["kokoro_url"] = kokoroUrl }
         if let searxngUrl, !searxngUrl.isEmpty { dict["searxng_url"] = searxngUrl }

@@ -56,6 +56,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             AssistantController.shared.start()
         }
+
+        // Auto-cura: se o Kokoro está configurado mas não responde (ex.:
+        // depois de um rebuild, o LaunchAgent pode não ter sido reiniciado),
+        // tenta relançar o servidor antes de cair no fallback de voz do
+        // sistema. Rodado em background — não atrasa o start.
+        ensureKokoroHealth()
+    }
+
+    /// Verifica se o servidor Kokoro está respondendo e tenta reiniciá-lo
+    /// via LaunchAgent caso não esteja. Assíncrono; nunca bloqueia o app.
+    private func ensureKokoroHealth() {
+        guard let kokoroURL = Config.kokoroBaseURL,
+              let base = URL(string: kokoroURL) else { return }
+        let checkURL = base.appendingPathComponent("v1/models")
+        var req = URLRequest(url: checkURL)
+        req.timeoutInterval = 3
+        URLSession.shared.dataTask(with: req) { [weak self] _, response, _ in
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            guard status != 200 else {
+                print("✅ Kokoro no ar: \(kokoroURL)")
+                return
+            }
+            print("⚠️ Kokoro não respondeu (\(kokoroURL), HTTP \(status)). Tentando reiniciar o LaunchAgent...")
+            ServiceManager.shared.kickstart(label: "com.pynkaro.kokoro")
+            // Re-verifica após o relançamento (o servidor leva ~2-3 s).
+            DispatchQueue.global().asyncAfter(deadline: .now() + 3.0) { [weak self] in
+                self?.verifyKokoroAfterRestart(url: checkURL)
+            }
+        }.resume()
+    }
+
+    private func verifyKokoroAfterRestart(url: URL) {
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 3
+        URLSession.shared.dataTask(with: req) { _, response, _ in
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            if status == 200 {
+                print("✅ Kokoro restaurado após reinício do LaunchAgent.")
+            } else {
+                print("⚠️ Kokoro segue fora do ar (HTTP \(status)). Usando a voz do sistema como fallback.")
+            }
+        }.resume()
     }
 
     private func buildStatusItem() {
@@ -167,13 +209,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.setupWindow?.close()
                 self.openSettings(onboarding: true)
             }
-            // NSHostingView como contentView com frame fixo (e não
+            // NSHostingView como contentView com frame inicial (e não
             // contentViewController): evita o updateAnimatedWindowSize que
             // estoura o ciclo de constraints ("Update Constraints in Window
-            // pass") ao abrir a janela.
+            // pass") ao abrir a janela. A janela é redimensionável: o
+            // autoresizingMask do hosting + minWidth/minHeight na SwiftUI
+            // view fazem o conteúdo acompanhar o tamanho.
             let window = NSWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 640, height: 660),
-                styleMask: [.titled, .closable],
+                styleMask: [.titled, .closable, .resizable],
                 backing: .buffered,
                 defer: false)
             let hosting = NSHostingView(rootView: view)
@@ -181,6 +225,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hosting.autoresizingMask = [NSView.AutoresizingMask.width, NSView.AutoresizingMask.height]
             window.contentView = hosting
             window.title = "Pynkaro — Configuração local"
+            window.minSize = NSSize(width: 600, height: 620)
             window.isReleasedWhenClosed = false
             window.center()
             setupWindow = window
@@ -200,7 +245,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let window = NSWindow(contentViewController: NSHostingController(rootView: view))
         window.title = onboarding ? "Bem-vindo ao Pynkaro" : "Configurações do Pynkaro"
-        window.styleMask = [.titled, .closable]
+        window.styleMask = [.titled, .closable, .resizable]
+        window.minSize = NSSize(width: 580, height: 420)
         window.isReleasedWhenClosed = false
         window.center()
         settingsWindow = window
@@ -233,7 +279,16 @@ struct SettingsView: View {
     init(isOnboarding: Bool, onSaved: (() -> Void)? = nil) {
         self.isOnboarding = isOnboarding
         self.onSaved = onSaved
-        _mode = State(initialValue: Config.ollamaBaseURL == nil ? 1 : 0)
+        // Abre a aba correta com base no modo persistido/inferido. Antes o
+        // app usava só a presença de ollama_url (0=Umbrel, 1=API), então um
+        // config local do Mac (localhost) caía na aba "Umbrel".
+        let modeValue: Int
+        switch Config.operationMode {
+        case .mac: modeValue = 0
+        case .umbrel: modeValue = 1
+        case .api: modeValue = 2
+        }
+        _mode = State(initialValue: modeValue)
         _anthropicKey = State(initialValue: Config.anthropicKey ?? "")
         _elevenLabsKey = State(initialValue: Config.elevenLabsKey ?? "")
         _ollamaUrl = State(initialValue: Config.ollamaBaseURL ?? "")
@@ -261,24 +316,31 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Modo de operação").font(.subheadline).bold()
                 Picker("", selection: $mode) {
-                    Text("Servidor local (Umbrel)").tag(0)
-                    Text("API paga (Anthropic + ElevenLabs)").tag(1)
+                    Text("Servidor local (Mac)").tag(0)
+                    Text("Servidor local (Umbrel)").tag(1)
+                    Text("API paga (Anthropic + ElevenLabs)").tag(2)
                 }
                 .pickerStyle(.segmented)
                 Text(mode == 0
+                     ? "LLM (Ollama) e voz (Kokoro) rodam 100% no seu Mac. Nenhuma chave é necessária."
+                     : mode == 1
                      ? "LLM e voz rodam na sua Umbrel (Ollama, Kokoro, SearXNG). Nenhuma chave é necessária."
                      : "LLM via Anthropic e voz via ElevenLabs. Requer chaves de API.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            if mode == 0 {
-                // Opções do servidor local
+            if mode == 0 || mode == 1 {
+                // Opções do servidor local (Mac ou Umbrel)
+                let isMac = mode == 0
+                let ollamaPlaceholder = isMac ? "http://localhost:11434/v1" : "http://192.168.0.189:11434/v1"
+                let kokoroPlaceholder = isMac ? "http://localhost:8888" : "http://192.168.0.189:8880"
+                let searxngPlaceholder = isMac ? "http://localhost:8080" : "http://192.168.0.189:8080"
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Servidor local (Umbrel)").font(.subheadline).bold()
-                    field("Ollama URL", text: $ollamaUrl, placeholder: "http://192.168.0.189:11434/v1")
-                    field("Kokoro URL", text: $kokoroUrl, placeholder: "http://192.168.0.189:8880")
-                    field("SearXNG URL", text: $searxngUrl, placeholder: "http://192.168.0.189:8080")
+                    Text(isMac ? "Servidor local (Mac)" : "Servidor local (Umbrel)").font(.subheadline).bold()
+                    field("Ollama URL", text: $ollamaUrl, placeholder: ollamaPlaceholder)
+                    field("Kokoro URL", text: $kokoroUrl, placeholder: kokoroPlaceholder)
+                    field("SearXNG URL", text: $searxngUrl, placeholder: searxngPlaceholder)
                     // Modelo — dropdown com os modelos instalados no Ollama
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Modelo").font(.caption).foregroundStyle(.secondary)
@@ -358,12 +420,13 @@ struct SettingsView: View {
                     save()
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(mode == 1 && anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(mode == 2 && anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
         .textFieldStyle(.roundedBorder)
         .padding(20)
-        .frame(width: 480)
+        .frame(minWidth: 580)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { loadDynamicOptions() }
     }
 
@@ -464,21 +527,23 @@ struct SettingsView: View {
         Config.setAnthropicKey(anthropicKey)
         Config.setElevenLabsKey(elevenLabsKey)
 
-        if mode == 0 {
+        if mode == 0 || mode == 1 {
             // "Voz do sistema (Mac)" = kokoro_voice vazio; o kokoro_url é
             // omitido do config para o app usar o Speaker local.
             let effectiveKokoroUrl = kokoroVoice.isEmpty ? nil : kokoroUrl
             let effectiveKokoroVoice = kokoroVoice.isEmpty ? nil : kokoroVoice
+            let savedMode: Config.PynkaroMode = (mode == 0) ? .mac : .umbrel
             Config.saveUmbrelOptions(
-                ollamaUrl: ollamaUrl, kokoroUrl: effectiveKokoroUrl,
+                mode: savedMode, ollamaUrl: ollamaUrl, kokoroUrl: effectiveKokoroUrl,
                 searxngUrl: searxngUrl, llmModel: llmModel,
                 kokoroVoice: effectiveKokoroVoice,
                 wakeWords: wakeWordsText.split(separator: ",")
                     .map { $0.trimmingCharacters(in: .whitespaces) }
                     .filter { !$0.isEmpty })
         } else {
-            // Modo API: remove as opções locais (sem ollama_url = modo API).
-            Config.saveUmbrelOptions(ollamaUrl: nil, kokoroUrl: nil,
+            // Modo API: remove as opções locais (sem ollama_url = modo API)
+            // e grava o mode explicitamente.
+            Config.saveUmbrelOptions(mode: .api, ollamaUrl: nil, kokoroUrl: nil,
                                      searxngUrl: nil, llmModel: nil,
                                      kokoroVoice: nil, wakeWords: nil)
         }

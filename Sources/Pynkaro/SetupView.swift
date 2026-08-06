@@ -128,14 +128,18 @@ struct SetupView: View {
             }
         }
         .padding(20)
-        // Tamanho fixo nas duas dimensões: sem ele o NSHostingView tenta
+        // Tamanho mínimo nas duas dimensões: sem ele o NSHostingView tenta
         // animar a janela ao tamanho do conteúdo e estoura o ciclo de
         // constraints (crash "Update Constraints in Window pass").
-        .frame(width: 640, height: 660)
+        // O usuário pode redimensionar a janela (maxWidth/.infinity deixam
+        // o conteúdo crescer e caber textos longos e o log de instalação).
+        .frame(minWidth: 600, minHeight: 620)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func apply(_ option: SetupOption) {
         Config.saveUmbrelOptions(
+            mode: .mac,
             ollamaUrl: option.ollamaUrl,
             kokoroUrl: "http://localhost:8888",
             searxngUrl: Config.searxngBaseURL,

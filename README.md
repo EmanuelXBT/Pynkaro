@@ -79,7 +79,7 @@ ollama pull qwen2.5:7b          # ou o modelo escolhido
 
 # Voz Kokoro (Python 3.10+ obrigatório)
 python3.12 -m venv ~/.pynkaro-tts
-~/.pynkaro-tts/bin/pip install -U pip kokoro-onnx soundfile fastapi uvicorn numpy
+~/.pynkaro-tts/bin/pip install -U pip kokoro-onnx==0.5.0 soundfile==0.14.0 fastapi==0.141.1 uvicorn==0.52.1 numpy==2.5.1
 ~/.pynkaro-tts/bin/python3 tools/kokoro_local_server.py   # baixa o modelo na 1ª execução
 
 # Config

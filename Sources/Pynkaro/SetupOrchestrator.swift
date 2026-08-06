@@ -207,7 +207,12 @@ final class SetupOrchestrator: ObservableObject {
             log("📦 Criando venv e instalando mlx-lm (pode demorar)...")
             let python = resolvePython()
             log("🐍 Usando \(python) (\(runner.runSync("\(python) --version").text.trimmingCharacters(in: .whitespacesAndNewlines)))")
-            runner.run("\(python) -m venv ~/.pynkaro-mlx && ~/.pynkaro-mlx/bin/pip install -U mlx-lm",
+            // Versões pinadas (==) para reprodutibilidade e segurança: sem -U,
+            // uma versão nova não muda comportamento nem quebra o servidor
+            // silenciosamente. Para atualizar: rode
+            //   ~/.pynkaro-mlx/bin/pip index versions mlx-lm
+            // e ajuste o == abaixo.
+            runner.run("\(python) -m venv ~/.pynkaro-mlx && ~/.pynkaro-mlx/bin/pip install mlx-lm==0.31.3",
                        onLine: { self.log($0) }) { out in
                 if out.exitCode == 0 {
                     self.startMLXServer(option: option, completion: completion)
@@ -255,7 +260,10 @@ final class SetupOrchestrator: ObservableObject {
             log("📦 Criando venv e instalando kokoro-onnx (pode demorar)...")
             let python = resolvePython()
             log("🐍 Usando \(python) (\(runner.runSync("\(python) --version").text.trimmingCharacters(in: .whitespacesAndNewlines)))")
-            runner.run("\(python) -m venv ~/.pynkaro-tts && ~/.pynkaro-tts/bin/pip install -U kokoro-onnx soundfile fastapi uvicorn numpy",
+            // Versões pinadas (==) — mesmo critério do MLX acima: reprodutível e
+            // imune a regressões silenciosas de versões novas. Para atualizar:
+            //   ~/.pynkaro-tts/bin/pip index versions kokoro-onnx
+            runner.run("\(python) -m venv ~/.pynkaro-tts && ~/.pynkaro-tts/bin/pip install kokoro-onnx==0.5.0 soundfile==0.14.0 fastapi==0.141.1 uvicorn==0.52.1 numpy==2.5.1",
                        onLine: { self.log($0) }) { out in
                 guard out.exitCode == 0 else {
                     self.log("❌ Falha ao instalar Kokoro (exit \(out.exitCode)).")

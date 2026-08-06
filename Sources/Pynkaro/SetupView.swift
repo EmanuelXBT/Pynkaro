@@ -32,8 +32,8 @@ struct SetupView: View {
         compatibleOptions.first { $0.id == selectedOptionID } ?? compatibleOptions[0]
     }
 
-    private let mlxSetupCommand = "python3 -m venv ~/.pynkaro-mlx && ~/.pynkaro-mlx/bin/pip install -U mlx-lm"
-    private let ttsInstallCommand = "python3 -m venv ~/.pynkaro-tts && ~/.pynkaro-tts/bin/pip install -U kokoro-onnx soundfile fastapi uvicorn numpy"
+    private let mlxSetupCommand = "python3 -m venv ~/.pynkaro-mlx && ~/.pynkaro-mlx/bin/pip install mlx-lm==0.31.3"
+    private let ttsInstallCommand = "python3 -m venv ~/.pynkaro-tts && ~/.pynkaro-tts/bin/pip install kokoro-onnx==0.5.0 soundfile==0.14.0 fastapi==0.141.1 uvicorn==0.52.1 numpy==2.5.1"
     private let ttsRunCommand = "~/.pynkaro-tts/bin/python3 tools/kokoro_local_server.py"
 
     init(onDone: (() -> Void)? = nil) {

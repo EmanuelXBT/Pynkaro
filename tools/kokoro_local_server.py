@@ -12,7 +12,7 @@ Uso:
 
 Instalação (uma vez):
     python3 -m venv ~/.pynkaro-tts
-    ~/.pynkaro-tts/bin/pip install -U kokoro-onnx soundfile fastapi uvicorn numpy
+    ~/.pynkaro-tts/bin/pip install kokoro-onnx==0.5.0 soundfile==0.14.0 fastapi==0.141.1 uvicorn==0.52.1 numpy==2.5.1
 
 Os modelos (kokoro-v1.0.onnx + voices-v1.0.bin, ~300 MB) são baixados
 automaticamente para ~/.pynkaro-tts/models/ na primeira execução.
@@ -179,7 +179,7 @@ def main() -> None:
         kokoro = load_kokoro()
     except ImportError:
         print("❌ kokoro-onnx não instalado. Rode:")
-        print("   python3 -m venv ~/.pynkaro-tts && ~/.pynkaro-tts/bin/pip install -U kokoro-onnx soundfile fastapi uvicorn numpy")
+        print("   python3 -m venv ~/.pynkaro-tts && ~/.pynkaro-tts/bin/pip install kokoro-onnx==0.5.0 soundfile==0.14.0 fastapi==0.141.1 uvicorn==0.52.1 numpy==2.5.1")
         sys.exit(1)
 
     print(f"🗣️  Kokoro local no ar: http://localhost:{args.port}/v1/audio/speech")

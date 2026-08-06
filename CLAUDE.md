@@ -14,7 +14,7 @@ swift run -c release   # roda em modo desenvolvimento (app de menu bar)
 ./make_app.sh          # monta o Pynkaro.app (bundle com Info.plist, recursos e assinatura ad-hoc)
 ```
 
-Não há testes nem linter configurados. O app só roda de fato em macOS (frameworks Speech/AVFoundation/AppKit) e requer permissões de Microfone e Reconhecimento de Fala concedidas ao terminal na primeira execução.
+Não há linter configurado. Há testes XCTest (alvo PynkaroTests): `swift test`. O app só roda de fato em macOS (frameworks Speech/AVFoundation/AppKit) e requer permissões de Microfone e Reconhecimento de Fala concedidas ao terminal na primeira execução.
 
 ## Configuração em runtime
 
@@ -22,9 +22,9 @@ Não há testes nem linter configurados. O app só roda de fato em macOS (framew
 - Env vars opcionais: `PYNKARO_MODEL`, `PYNKARO_WAKE_WORD`, `PYNKARO_WEB_SEARCH=0`, `PYNKARO_VOICE`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL`.
 - Imagens carregadas em runtime da raiz do projeto (ou `~/.config/pynkaro/`): `avatar.png` (obrigatória para exibir o avatar) e sprites de boca opcionais `avatar_mid.png`, `avatar_open.png`, `avatar_round.png`, `avatar_fv.png`.
 
-## Arquitetura (Sources/Pynkaro/)
+## Arquitetura (Sources/PynkaroCore/ — biblioteca testável)
 
-O centro é a máquina de estados em `VoiceAssistant.swift`: `waitingWakeWord → capturingQuestion → thinking → speaking → waitingWakeWord`. Tudo converge para ela; os demais arquivos são satélites plugados por closures.
+O centro é a máquina de estados em `VoiceAssistant.swift`: `waitingWakeWord → capturingQuestion → thinking → speaking → waitingWakeWord`. Tudo converge para ela; os demais arquivos são satélites plugados por closures. O executável (`Sources/Pynkaro/PynkaroApp.swift`) é a entrada do app; os testes vivem em `Tests/PynkaroTests/`.
 
 - `PynkaroApp.swift` — entrada do app (SwiftUI `@main`): `MenuBarExtra` cujo ícone reflete o estado, menu (pausar/retomar, sugestores, sair) e a janela dos sugestores de notícias (`@AppStorage` → UserDefaults, lidos pelo `ClaudeClient` a cada pergunta). `AppDelegate` define `.accessory` (sem Dock) e inicia o assistente.
 - `AssistantController.swift` — `ObservableObject` singleton que faz a ponte VoiceAssistant → SwiftUI (`AssistantStatus` com símbolo e rótulo por estado; `pause()`/`resume()`).
@@ -40,4 +40,4 @@ O centro é a máquina de estados em `VoiceAssistant.swift`: `waitingWakeWord �
 
 - Idioma do código/comentários/mensagens de terminal: português brasileiro.
 - Concorrência por GCD/closures (`DispatchQueue.main`) — não migrar para async/await sem pedido explícito.
-- Um único alvo executável; única dependência externa: RiveRuntime (rig do avatar). Rede via URLSession + JSONSerialization.
+- Alvos: PynkaroCore (biblioteca — lógica testável), Pynkaro (executável fino, entrada do app), PynkaroTests (XCTest). Única dependência externa: RiveRuntime (rig do avatar). Rede via URLSession + JSONSerialization.

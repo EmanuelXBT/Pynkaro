@@ -142,6 +142,28 @@ final class ClaudeClient {
     private var lastSuggesters: [String] = []
     */
 
+    /// Extrai o texto da resposta do Ollama (/v1/chat/completions).
+    /// Separada da closure de rede para ser testável.
+    static func parseOllamaText(_ json: [String: Any]) -> String? {
+        guard let choices = json["choices"] as? [[String: Any]],
+              let first = choices.first,
+              let message = first["message"] as? [String: Any],
+              let text = message["content"] as? String,
+              !text.isEmpty else { return nil }
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Concatena os blocos de texto da Messages API da Anthropic
+    /// (ignora tool_use e demais tipos). Retorna nil se não houver texto.
+    static func parseAnthropicText(_ content: [[String: Any]]) -> String? {
+        let text = content
+            .filter { $0["type"] as? String == "text" }
+            .compactMap { $0["text"] as? String }
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? nil : text
+    }
+
     func ask(_ question: String, completion: @escaping (Result<String, Error>) -> Void) {
         // Modo Umbrel (Ollama) não exige chave de API.
         if ollamaBaseURL == nil, apiKey.isEmpty {
@@ -226,12 +248,7 @@ final class ClaudeClient {
                 completion(.failure(ClaudeError.badResponse("Formato inesperado na resposta da API.")))
                 return
             }
-            let text = content
-                .filter { $0["type"] as? String == "text" }
-                .compactMap { $0["text"] as? String }
-                .joined(separator: " ")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !text.isEmpty else {
+            guard let text = ClaudeClient.parseAnthropicText(content) else {
                 completion(.failure(ClaudeError.badResponse("A API não retornou texto.")))
                 return
             }
@@ -343,16 +360,12 @@ final class ClaudeClient {
                 completion(.failure(ClaudeError.badResponse(message)))
                 return
             }
-            guard let choices = json["choices"] as? [[String: Any]],
-                  let first = choices.first,
-                  let message = first["message"] as? [String: Any],
-                  let text = message["content"] as? String,
-                  !text.isEmpty else {
+            guard let text = ClaudeClient.parseOllamaText(json) else {
                 completion(.failure(ClaudeError.badResponse("Ollama não retornou texto.")))
                 return
             }
             self?.history.append(["role": "assistant", "content": text])
-            completion(.success(text.trimmingCharacters(in: .whitespacesAndNewlines)))
+            completion(.success(text))
         }.resume()
     }
 }

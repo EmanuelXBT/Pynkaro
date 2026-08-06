@@ -120,7 +120,7 @@ final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
     /// 0 fechada (m/b/p e pausas), 1 entreaberta (e/i e consoantes),
     /// 2 aberta (a), 3 arredondada (o/u), 4 lábio-dental (f/v).
     /// Retorna nil para espaços/pontuação (mantém a boca anterior).
-    private static func viseme(for character: String) -> Int? {
+    static func viseme(for character: String) -> Int? {
         let c = character
             .folding(options: .diacriticInsensitive, locale: Locale(identifier: "pt_BR"))
             .lowercased()

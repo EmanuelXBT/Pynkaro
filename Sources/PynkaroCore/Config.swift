@@ -106,6 +106,16 @@ struct Config: Decodable {
         case api = "api"
     }
 
+    /// Inferência do modo pela URL (usada quando o config não tem `mode`).
+    /// Separada do Config.shared (estático) para ser testável.
+    static func inferMode(ollamaURL: String?) -> PynkaroMode {
+        guard let url = ollamaURL else { return .api }
+        if url.contains("localhost") || url.contains("127.0.0.1") {
+            return .mac
+        }
+        return .umbrel
+    }
+
     /// Modo atual. Usa o campo `mode` do config quando presente; para configs
     /// antigos (sem o campo), infere pela URL: localhost → Mac, IP de rede →
     /// Umbrel, ausente → API. Essa inferência é o que elimina o conflito
@@ -114,11 +124,7 @@ struct Config: Decodable {
         if let raw = shared.mode, let mode = PynkaroMode(rawValue: raw) {
             return mode
         }
-        guard let url = ollamaBaseURL else { return .api }
-        if url.contains("localhost") || url.contains("127.0.0.1") {
-            return .mac
-        }
-        return .umbrel
+        return inferMode(ollamaURL: ollamaBaseURL)
     }
 
     private static func env(_ key: String) -> String? {

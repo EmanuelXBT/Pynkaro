@@ -30,7 +30,7 @@ final class VoiceAssistant: NSObject {
 
     /// Frases que cancelam a captura (avatar some sem consultar o Claude).
     /// Comparação sem acentos/maiúsculas; vale dita sozinha ou no fim da fala.
-    private let cancelPhrases = ["esquece", "esqueca", "deixa pra la", "deixa para la", "cancela"]
+    private static let cancelPhrases = ["esquece", "esqueca", "deixa pra la", "deixa para la", "cancela"]
 
     private var state: State = .waitingWakeWord {
         didSet { emitStatus() }
@@ -237,13 +237,15 @@ final class VoiceAssistant: NSObject {
         armSilenceTimer()
     }
 
-    private func isCancelRequest(_ text: String) -> Bool {
+    /// Detecta frases de cancelamento ("esquece", "cancela"...). Estática e
+    /// sem estado para ser testável.
+    static func isCancelRequest(_ text: String) -> Bool {
         let normalized = text
             .folding(options: [.diacriticInsensitive, .caseInsensitive],
                      locale: Locale(identifier: "pt_BR"))
             .lowercased()
             .trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        return cancelPhrases.contains { normalized == $0 || normalized.hasSuffix(" " + $0) }
+        return Self.cancelPhrases.contains { normalized == $0 || normalized.hasSuffix(" " + $0) }
     }
 
     /// Aborta a captura sem consultar o Claude: o avatar some em silêncio.

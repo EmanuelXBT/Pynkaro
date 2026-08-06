@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import Combine
+import PynkaroCore
 
 /// App de menu bar. A UI do status item é feita com NSStatusItem (AppKit),
 /// mais confiável que o MenuBarExtra do SwiftUI no macOS 13.

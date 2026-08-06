@@ -323,9 +323,9 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Modo de operação").font(.subheadline).bold()
                 Picker("", selection: $mode) {
-                    Text("Servidor local (Mac)").tag(0)
-                    Text("Servidor local (Umbrel)").tag(1)
-                    Text("API paga (Anthropic + ElevenLabs)").tag(2)
+                    Text("Mac").tag(0)
+                    Text("Umbrel").tag(1)
+                    Text("API paga").tag(2)
                     Text("Logs").tag(3)
                 }
                 .pickerStyle(.segmented)
@@ -389,8 +389,8 @@ struct SettingsView: View {
                                         Text(voice.label).tag(voice.id)
                                     }
                                 } else {
-                                    ForEach(ptVoices, id: \.self) { voice in
-                                        Text(voice).tag(voice)
+                                    ForEach(defaultVoices) { voice in
+                                        Text(voice.label).tag(voice.id)
                                     }
                                 }
                             }
@@ -454,9 +454,29 @@ struct SettingsView: View {
 
     private var allVoiceIds: [String] { kokoroVoices }
 
-    /// Vozes em português (prefixos pf_/pm_ do Kokoro).
-    private var ptVoices: [String] {
-        kokoroVoices.filter { $0.hasPrefix("pf_") || $0.hasPrefix("pm_") }
+    /// Vozes padrão do dropdown (sem "Mostrar todas"): do idioma do
+    /// sistema; se o idioma não tiver vozes no Kokoro, fallback pt-BR + inglês.
+    private var defaultVoices: [VoiceOption] {
+        let prefixes = systemLanguagePrefixes
+        return organizedVoices.filter { opt in
+            prefixes.contains { opt.id.hasPrefix($0) }
+        }
+    }
+
+    /// Prefixos de idioma do Kokoro para o idioma do sistema.
+    private var systemLanguagePrefixes: [String] {
+        let lang = Locale.current.language.languageCode?.identifier ?? "pt"
+        switch lang {
+        case "pt": return ["pf_", "pm_"]
+        case "en": return ["af_", "am_", "bf_", "bm_"]
+        case "es": return ["ef_", "em_"]
+        case "fr": return ["ff_"]
+        case "hi": return ["hf_", "hm_"]
+        case "it": return ["if_", "im_"]
+        case "ja": return ["jf_", "jm_"]
+        case "zh": return ["zf_", "zm_"]
+        default: return ["pf_", "pm_", "af_", "am_"]
+        }
     }
 
     /// Todas as vozes com rótulo de idioma, pt-BR primeiro.
@@ -484,7 +504,14 @@ struct SettingsView: View {
         case "zf", "zm": lang = "Chinês"
         default: lang = "Outro"
         }
-        return "\(lang) — \(id)"
+        return "\(lang) — \(voiceDisplayName(id))"
+    }
+
+    /// "pm_alex" → "Alex": remove o prefixo de idioma e capitaliza a 1ª letra.
+    private func voiceDisplayName(_ id: String) -> String {
+        let parts = id.split(separator: "_", maxSplits: 1)
+        guard let name = parts.last, !name.isEmpty else { return id }
+        return name.prefix(1).uppercased() + name.dropFirst()
     }
 
     private func loadDynamicOptions() {

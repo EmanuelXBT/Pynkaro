@@ -18,6 +18,7 @@ Os modelos (kokoro-v1.0.onnx + voices-v1.0.bin, ~300 MB) são baixados
 automaticamente para ~/.pynkaro-tts/models/ na primeira execução.
 """
 import argparse
+import hashlib
 import io
 import os
 import sys
@@ -37,8 +38,24 @@ MODEL_URL = ("https://github.com/thewh1teagle/kokoro-onnx/releases/download/"
 VOICES_URL = ("https://github.com/thewh1teagle/kokoro-onnx/releases/download/"
               f"model-files-{MODEL_VERSION}/voices-{MODEL_VERSION}.bin")
 
+# SHA-256 esperados dos arquivos de modelo (pin do release model-files-v1.0).
+# Garantem que um download corrompido ou um release comprometido não seja
+# carregado. Para atualizar o release, baixe os arquivos e rode:
+#   sha256sum kokoro-<VERSAO>.onnx voices-<VERSAO>.bin
+MODEL_SHA256 = "7d5df8ecf7d4b1878015a32686053fd0eebe2bc377234608764cc0ef3636a6c5"
+VOICES_SHA256 = "bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d"
+
 DEFAULT_PORT = 8888
 DEFAULT_VOICE = "pm_alex"
+
+
+def sha256(path: Path) -> str:
+    """SHA-256 de um arquivo, em chunks (memória constante)."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def ensure_model_dir() -> Path:
@@ -49,11 +66,22 @@ def ensure_model_dir() -> Path:
     return model_dir
 
 
-def download(url: str, dest: Path) -> None:
-    """Baixa com barra simples de progresso (retomável se o arquivo existir)."""
+def verify_or_download(url: str, dest: Path, expected_sha256: str) -> None:
+    """Baixa (se faltar) e valida o SHA-256 do arquivo de modelo.
+
+    Arquivos existentes também são validados — um arquivo corrompido no
+    disco (ex.: download interrompido antes do rename) é detectado e
+    baixado de novo. Em caso de divergência de hash o arquivo é removido
+    e o processo aborta com erro claro (nunca carrega modelo não verificado).
+    """
     if dest.exists() and dest.stat().st_size > 0:
-        return
-    print(f"⬇️  Baixando {dest.name} (~{dest.name.startswith('kokoro') and '300 MB' or 'pequeno'})...")
+        if sha256(dest) == expected_sha256:
+            print(f"✅ {dest.name} verificado (SHA-256 ok).")
+            return
+        print(f"⚠️ {dest.name} com SHA-256 divergente. Baixando novamente...")
+        dest.unlink()
+
+    print(f"⬇️  Baixando {dest.name} (~{dest.name.startswith('kokoro') and '300 MB' or '28 MB'})...")
     tmp = dest.with_suffix(dest.suffix + ".part")
     req = urllib.request.Request(url, headers={"User-Agent": "Pynkaro/1.0"})
     with urllib.request.urlopen(req) as resp, open(tmp, "wb") as out:
@@ -71,6 +99,16 @@ def download(url: str, dest: Path) -> None:
     print()
     tmp.rename(dest)
 
+    actual = sha256(dest)
+    if actual != expected_sha256:
+        dest.unlink()
+        raise RuntimeError(
+            f"Falha de integridade em {dest.name}: SHA-256 {actual} != esperado "
+            f"{expected_sha256}. O download pode ter sido corrompido ou o release "
+            f"mudou; verifique a conexão e tente novamente."
+        )
+    print(f"✅ {dest.name} verificado (SHA-256 ok).")
+
 
 def load_kokoro():
     from kokoro_onnx import Kokoro  # import tardio: falha amigável se não instalado
@@ -78,8 +116,8 @@ def load_kokoro():
     model_dir = ensure_model_dir()
     model_path = model_dir / f"kokoro-{MODEL_VERSION}.onnx"
     voices_path = model_dir / f"voices-{MODEL_VERSION}.bin"
-    download(MODEL_URL, model_path)
-    download(VOICES_URL, voices_path)
+    verify_or_download(MODEL_URL, model_path, MODEL_SHA256)
+    verify_or_download(VOICES_URL, voices_path, VOICES_SHA256)
     print("🧠 Carregando Kokoro (pode levar alguns segundos na 1ª vez)...")
     return Kokoro(str(model_path), str(voices_path))
 

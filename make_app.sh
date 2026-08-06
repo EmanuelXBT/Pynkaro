@@ -22,6 +22,26 @@ for f in avatar.png avatar_mid.png avatar_open.png avatar_round.png avatar_fv.pn
     [ -f "$f" ] && cp "$f" "$APP/Contents/Resources/"
 done
 
+# Ícone do app: gera AppIcon.icns a partir do avatar.png (se existir).
+# sips/iconutil são nativos do macOS; o icns é o formato obrigatório para
+# o Finder/Dock. Resolução mínima para retina: 1024x1024 (avatar 1146x1244 ✓).
+if [ -f avatar.png ]; then
+    echo "🖼️ Gerando AppIcon.icns a partir do avatar.png..."
+    ICONSET=$(mktemp -d)/AppIcon.iconset
+    mkdir -p "$ICONSET"
+    for spec in "16 icon_16x16" "32 icon_16x16@2x" "32 icon_32x32" "64 icon_32x32@2x" \
+                "128 icon_128x128" "256 icon_128x128@2x" "256 icon_256x256" \
+                "512 icon_256x256@2x" "512 icon_512x512" "1024 icon_512x512@2x"; do
+        size=${spec% *}; name=${spec#* }
+        sips -z "$size" "$size" avatar.png --out "$ICONSET/$name.png" >/dev/null
+    done
+    iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+    rm -rf "$(dirname "$ICONSET")"
+    echo "✅ AppIcon.icns gerado."
+else
+    echo "ℹ️ avatar.png não encontrado — app sem ícone personalizado."
+fi
+
 # Servidor Kokoro local (usado pelo LaunchAgent no modo Mac local).
 [ -f tools/kokoro_local_server.py ] && cp tools/kokoro_local_server.py "$APP/Contents/Resources/"
 

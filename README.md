@@ -23,6 +23,18 @@ Três modos de operação:
 - **Avatar animado** — janela flutuante com lip sync (por amplitude no modo local/Umbrel); o `avatar.png` também vira o **ícone do app** no `make_app.sh`
 - **Privacidade** — o único tráfego de rede é dentro da sua LAN (Mac ↔ Umbrel) ou nenhum (modo Mac)
 
+## 🔮 Futuro: Pynkaro × Hermes Agent
+
+O Pynkaro está caminhando para ser a **interface de voz do Hermes Agent** — o agente de IA que roda na sua Umbrel. Em breve:
+
+- **Respostas do Hermes direto via Pynkaro** — o agente responde e o Pynkaro fala a resposta com a voz do Kokoro, sem você abrir nada
+- **Comandos por voz/texto para o agente** — diga "Píncaro, [comando]" e o Pynkaro repassa para o Hermes executar (automações, perguntas, tarefas no servidor)
+- **Notificações cron e alertas** — agendamentos e avisos do Hermes chegam falados na hora, em vez de só no chat
+
+A ideia é unir a privacidade do stack 100% local à capacidade de agente do Hermes: você conversa com o assistente e ele age no seu servidor — tudo pela voz, sem telas.
+
+> 🦊 *Este repo é a ponta de voz; o cérebro (agente + automações) fica no [Hermes Agent para Umbrel](https://github.com/EmanuelXBT/hermes-agent-umbrel).*
+
 ## 📋 Requisitos
 
 - **MacBook:** macOS 13+ (Apple Silicon recomendado), Command Line Tools (`xcode-select --install`)

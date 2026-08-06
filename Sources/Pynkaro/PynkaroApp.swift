@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import Combine
+import UserNotifications
 
 /// App de menu bar. A UI do status item é feita com NSStatusItem (AppKit),
 /// mais confiável que o MenuBarExtra do SwiftUI no macOS 13.
@@ -24,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: NSWindow?
     private var setupWindow: NSWindow?
     private var cancellable: AnyCancellable?
+    private var logCancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Auto-teste da lógica pura (sem XCTest, roda sem Xcode):
@@ -37,18 +39,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         buildStatusItem()
 
-        // Ícone e rótulos acompanham o estado do assistente.
+        // Ícone e rótulos acompanham o estado do assistente; um erro não
+        // visto tem prioridade no ícone (ver refreshStatusIcon).
         cancellable = AssistantController.shared.$status
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] status in
+            .sink { [weak self] _ in
                 guard let self else { return }
-                self.statusItem?.button?.image = NSImage(
-                    systemSymbolName: status.symbolName,
-                    accessibilityDescription: status.label
-                )
-                self.statusLabelItem.title = status.label
-                self.pauseItem.title = (status == .paused) ? "Retomar escuta" : "Pausar escuta"
+                self.refreshStatusIcon()
+                self.pauseItem.title = (AssistantController.shared.status == .paused)
+                    ? "Retomar escuta" : "Pausar escuta"
             }
+
+        // Erros recentes mudam o ícone da menu bar até serem vistos.
+        logCancellable = LogStore.shared.$hasUnseenErrors
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.refreshStatusIcon() }
+
+        // Notificações do sistema — usadas pelos erros em produção.
+        UNUserNotificationCenter.current()
+            .requestAuthorization(options: [.alert, .sound]) { _, _ in }
 
         // Primeira execução: se não há chave nem servidor local,
         // abre o guia de instalação (LLM + Kokoro no Mac).
@@ -162,6 +171,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = item
     }
 
+    /// Ícone da menu bar: erros não vistos têm prioridade sobre o estado.
+    private func refreshStatusIcon() {
+        if LogStore.shared.hasUnseenErrors {
+            statusItem?.button?.image = NSImage(
+                systemSymbolName: "exclamationmark.triangle.fill",
+                accessibilityDescription: "Pynkaro — erros recentes (veja Configurações > Logs)")
+            statusLabelItem.title = "⚠️ Erros recentes — veja Logs"
+        } else {
+            let status = AssistantController.shared.status
+            statusItem?.button?.image = NSImage(
+                systemSymbolName: status.symbolName,
+                accessibilityDescription: status.label)
+            statusLabelItem.title = status.label
+        }
+    }
+
     @objc private func togglePause() {
         AssistantController.shared.togglePause()
     }
@@ -218,6 +243,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func openSettings(onboarding: Bool) {
+        // Abrir as Configurações marca os erros como vistos (limpa o
+        // indicador de alerta da menu bar — o painel de Logs está aqui).
+        LogStore.shared.markSeen()
         let view = SettingsView(isOnboarding: onboarding) { [weak self] in
             self?.settingsWindow?.close()
             AssistantController.shared.start()
@@ -298,18 +326,24 @@ struct SettingsView: View {
                     Text("Servidor local (Mac)").tag(0)
                     Text("Servidor local (Umbrel)").tag(1)
                     Text("API paga (Anthropic + ElevenLabs)").tag(2)
+                    Text("Logs").tag(3)
                 }
                 .pickerStyle(.segmented)
-                Text(mode == 0
-                     ? "LLM (Ollama) e voz (Kokoro) rodam 100% no seu Mac. Nenhuma chave é necessária."
-                     : mode == 1
-                     ? "LLM e voz rodam na sua Umbrel (Ollama, Kokoro, SearXNG). Nenhuma chave é necessária."
-                     : "LLM via Anthropic e voz via ElevenLabs. Requer chaves de API.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if mode != 3 {
+                    Text(mode == 0
+                         ? "LLM (Ollama) e voz (Kokoro) rodam 100% no seu Mac. Nenhuma chave é necessária."
+                         : mode == 1
+                         ? "LLM e voz rodam na sua Umbrel (Ollama, Kokoro, SearXNG). Nenhuma chave é necessária."
+                         : "LLM via Anthropic e voz via ElevenLabs. Requer chaves de API.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
-            if mode == 0 || mode == 1 {
+            if mode == 3 {
+                // Painel de logs (erros sempre; detalhes só em modo dev).
+                LogsPanel()
+            } else if mode == 0 || mode == 1 {
                 // Opções do servidor local (Mac ou Umbrel)
                 let isMac = mode == 0
                 let ollamaPlaceholder = isMac ? "http://localhost:11434/v1" : "http://192.168.0.189:11434/v1"
@@ -389,17 +423,19 @@ struct SettingsView: View {
                 }
             }
 
-            Text("Chaves são salvas no Keychain; opções de servidor no config.json. Reinicie o app para aplicar.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if mode != 3 {
+                Text("Chaves são salvas no Keychain; opções de servidor no config.json. Reinicie o app para aplicar.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-            HStack {
-                Spacer()
-                Button(isOnboarding ? "Salvar e começar" : "Salvar") {
-                    save()
+                HStack {
+                    Spacer()
+                    Button(isOnboarding ? "Salvar e começar" : "Salvar") {
+                        save()
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(mode == 2 && anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                .keyboardShortcut(.defaultAction)
-                .disabled(mode == 2 && anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
         .textFieldStyle(.roundedBorder)
@@ -531,9 +567,7 @@ struct SettingsView: View {
         restartApp()
     }
 
-    /// Relança o app (via LaunchServices para .app, ou o binário direto
-    /// no caso de `swift run`) e encerra a instância atual.
-    /// Relança o app (helper compartilhadocom a Instalação).
+    /// Relança o app (helper compartilhado com a Instalação).
     private func restartApp() {
         AppRestart.relaunch()
     }

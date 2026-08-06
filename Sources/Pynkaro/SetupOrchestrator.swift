@@ -302,8 +302,18 @@ final class SetupOrchestrator: ObservableObject {
             source = fm.currentDirectoryPath + "/tools/kokoro_local_server.py"
         }
         if let s = source, fm.fileExists(atPath: s) {
-            try? fm.copyItem(atPath: s, toPath: destination)
-            log("📄 Script do servidor Kokoro copiado.")
+            // copyItem NÃO sobrescreve: uma cópia antiga instalada fica sem
+            // rotas novas (ex.: /v1/audio/voices) e o dropdown de vozes fica
+            // vazio. Remove o destino antes de copiar (sempre atualiza).
+            if fm.fileExists(atPath: destination) {
+                try? fm.removeItem(atPath: destination)
+            }
+            do {
+                try fm.copyItem(atPath: s, toPath: destination)
+                log("📄 Script do servidor Kokoro copiado (atualizado).")
+            } catch {
+                log("⚠️ Falha ao copiar o script do Kokoro: \(error.localizedDescription)")
+            }
         } else {
             log("⚠️ Script kokoro_local_server.py não encontrado no bundle nem em tools/.")
         }

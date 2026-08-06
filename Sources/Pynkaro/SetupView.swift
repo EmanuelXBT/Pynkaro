@@ -27,6 +27,7 @@ struct SetupView: View {
     @StateObject private var orchestrator = SetupOrchestrator()
     @State private var copiedInstall = false
     @State private var copiedTTS = false
+    @State private var copiedTTSRun = false
 
     private var selectedOption: SetupOption {
         compatibleOptions.first { $0.id == selectedOptionID } ?? compatibleOptions[0]
@@ -63,47 +64,43 @@ struct SetupView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     if !blockedOptions.isEmpty {
-                        Text("⚠️ Ocultas (RAM insuficiente): \(blockedOptions.map(\.label).joined(separator: " · "))")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    HStack {
-                        Text(selectedOption.needsMLX ? mlxSetupCommand : (selectedOption.pullCommand ?? ""))
-                            .font(.system(.body, design: .monospaced))
-                            .textSelection(.enabled)
-                        Spacer()
-                        Button(copiedInstall ? "Copiado ✓" : "Copiar") {
-                            copyToPasteboard(selectedOption.needsMLX ? mlxSetupCommand : (selectedOption.pullCommand ?? ""))
-                            copiedInstall = true
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("⚠️ Ocultas — RAM insuficiente para este Mac (\(ram) GB):")
+                                .font(.caption).bold()
+                                .foregroundStyle(.orange)
+                            ForEach(blockedOptions) { option in
+                                Text("• \(option.label): \(option.ramNote)")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
                         }
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.orange.opacity(0.08))
+                        .cornerRadius(6)
                     }
+                    Divider()
+                    commandRow("Comando de instalação do modelo",
+                               selectedOption.needsMLX ? mlxSetupCommand : (selectedOption.pullCommand ?? ""),
+                               isCopied: $copiedInstall)
                 }
             }
 
             // 2. Kokoro
             GroupBox("2. Voz Kokoro local") {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Instalado automaticamente (venv + modelo baixado na 1ª execução). Comando manual: ")
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Instalado automaticamente pelo orquestrador (venv + modelo baixado na 1ª execução). Os comandos manuais abaixo são apenas o fallback:")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    HStack {
-                        Text(ttsInstallCommand)
-                            .font(.system(.body, design: .monospaced))
-                            .textSelection(.enabled)
-                        Spacer()
-                        Button(copiedTTS ? "Copiado ✓" : "Copiar") {
-                            copyToPasteboard(ttsInstallCommand)
-                            copiedTTS = true
-                        }
-                    }
-                    HStack {
-                        Text(ttsRunCommand)
-                            .font(.system(.body, design: .monospaced))
-                            .textSelection(.enabled)
-                        Spacer()
-                        Button("Copiar") { copyToPasteboard(ttsRunCommand) }
-                    }
+                        .fixedSize(horizontal: false, vertical: true)
+                    commandRow("Instalação da voz (venv + pacotes)",
+                               ttsInstallCommand,
+                               isCopied: $copiedTTS)
+                    Divider()
+                    commandRow("Execução do servidor Kokoro",
+                               ttsRunCommand,
+                               isCopied: $copiedTTSRun)
                 }
             }
 
@@ -169,6 +166,31 @@ struct SetupView: View {
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(text, forType: .string)
+    }
+
+    /// Linha padrão de comando (design system): rótulo descritivo, caixa
+    /// monoespaçada com fundo sutil e botão copiar alinhado à direita.
+    private func commandRow(_ title: String,
+                            _ command: String,
+                            isCopied: Binding<Bool>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                Text(command)
+                    .font(.system(.body, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                    .background(Color.black.opacity(0.06))
+                    .cornerRadius(6)
+                Button(isCopied.wrappedValue ? "Copiado ✓" : "Copiar") {
+                    copyToPasteboard(command)
+                    isCopied.wrappedValue = true
+                }
+            }
+        }
     }
 
     /// Relança o app (via LaunchServices para .app, ou o binário direto

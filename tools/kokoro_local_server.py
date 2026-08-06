@@ -100,6 +100,20 @@ def models():
     return {"object": "list", "data": [{"id": "kokoro", "object": "model"}]}
 
 
+@app.get("/v1/audio/voices")
+def voices():
+    """Catálogo de vozes (OpenAI-compatível, mesmo formato do Kokoro-FastAPI).
+
+    O app Pynkaro chama GET /v1/audio/voices para popular o picker de vozes
+    (agrupadas por idioma, pt-BR primeiro). Sem este endpoint o picker cai
+    no fallback de TextField.
+    """
+    if kokoro is None:
+        return Response(content="Kokoro não carregado", status_code=503)
+    ids = kokoro.get_voices()
+    return {"voices": [{"id": v, "name": v} for v in ids]}
+
+
 @app.post("/v1/audio/speech")
 def speech(req: SpeechRequest):
     if kokoro is None:

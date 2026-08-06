@@ -291,6 +291,16 @@ final class VoiceAssistant: NSObject {
 
         state = .thinking
         Log.debug("🧠 Pergunta: \(q)")
+
+        // Apresentação pré-definida ("se apresente"): responde o roteiro
+        // fixo do IntroScript SEM consultar o LLM — rápido, determinístico
+        // e sempre igual (útil para gravar vídeo de demonstração).
+        if IntroScript.matches(q) {
+            Log.debug("🎬 IntroScript: apresentação pré-definida (sem LLM).")
+            handleAnswer(.success(IntroScript.text))
+            return
+        }
+
         claude.ask(q) { [weak self] result in
             DispatchQueue.main.async { self?.handleAnswer(result) }
         }

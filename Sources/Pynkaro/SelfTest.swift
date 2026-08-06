@@ -80,6 +80,16 @@ enum SelfTest {
         check("parseAnthropicText sem texto",
               ClaudeClient.parseAnthropicText(anthropicVazio) == nil)
 
+        // MARK: IntroScript.matches (apresentação pré-definida)
+        check("IntroScript('se apresente')", IntroScript.matches("se apresente"))
+        check("IntroScript('Se apresente')", IntroScript.matches("Se apresente"))
+        check("IntroScript('pode se apresentar?')", IntroScript.matches("pode se apresentar?"))
+        check("IntroScript('quem é você')", IntroScript.matches("quem é você"))
+        check("IntroScript('qual é o seu nome?')", IntroScript.matches("qual é o seu nome?"))
+        check("!IntroScript('que horas são')", !IntroScript.matches("que horas são"))
+        check("!IntroScript('toca uma música')", !IntroScript.matches("toca uma música"))
+        check("!IntroScript('')", !IntroScript.matches(""))
+
         print("")
         if failures == 0 {
             print("✅ SELFTEST OK — \(passed) verificações passaram")

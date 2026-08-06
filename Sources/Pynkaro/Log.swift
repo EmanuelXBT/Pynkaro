@@ -136,6 +136,9 @@ final class LogStore: ObservableObject {
     // MARK: - Notificação do sistema (produção)
 
     private func sendNotification(_ entry: Entry) {
+        // Blindagem em profundidade: UNUserNotificationCenter.current()
+        // crasha fora de um bundle .app (ex.: binário de dev direto).
+        guard !Log.isDev else { return }
         let center = UNUserNotificationCenter.current()
         let content = UNMutableNotificationContent()
         content.title = "Pynkaro — erro"

@@ -56,8 +56,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] _ in self?.refreshStatusIcon() }
 
         // Notificações do sistema — usadas pelos erros em produção.
-        UNUserNotificationCenter.current()
-            .requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        // UNUserNotificationCenter.current() exige um bundle .app válido;
+        // em dev (swift run / binário direto) sem bundle ele lança
+        // NSInternalInconsistencyException ("bundleProxyForCurrentProcess
+        // is nil") e derruba o app — por isso só em produção.
+        if !Log.isDev {
+            UNUserNotificationCenter.current()
+                .requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        }
 
         // Primeira execução: se não há chave nem servidor local,
         // abre o guia de instalação (LLM + Kokoro no Mac).

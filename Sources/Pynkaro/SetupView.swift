@@ -163,9 +163,18 @@ struct SetupView: View {
             task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
             task.arguments = [Bundle.main.bundleURL.path]
         } else {
-            task.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
+            // Bundle.main.executablePath (absoluto) em vez de
+            // CommandLine.arguments[0]: no `swift run` o argumento pode vir
+            // só com o nome do binário e o relançamento falha em silêncio.
+            task.executableURL = URL(fileURLWithPath: Bundle.main.executablePath
+                                     ?? CommandLine.arguments[0])
         }
-        try? task.run()
+        do {
+            try task.run()
+        } catch {
+            print("⚠️ Falha ao relançar o app: \(error.localizedDescription)")
+        }
+        usleep(300_000)
         NSApp.terminate(nil)
     }
 }

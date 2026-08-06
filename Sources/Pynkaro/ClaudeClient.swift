@@ -298,7 +298,11 @@ final class ClaudeClient {
 
         var req = URLRequest(url: URL(string: endpoint)!)
         req.httpMethod = "POST"
-        req.timeoutInterval = 120  // modelos locais são mais lentos
+        // Modelos locais são mais lentos — e a PRIMEIRA carga de um modelo
+        // grande (ex.: Bonsai-27B via MLX/Ollama) faz download + load antes
+        // de responder, podendo estourar 120 s. 240 s cobre o primeiro uso;
+        // depois que o modelo fica residente, as respostas voltam a ser rápidas.
+        req.timeoutInterval = 240
         req.setValue("application/json", forHTTPHeaderField: "content-type")
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
 

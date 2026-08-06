@@ -172,9 +172,9 @@ struct Config: Decodable {
             let data = try JSONSerialization.data(withJSONObject: dict,
                                                   options: [.prettyPrinted, .sortedKeys])
             try data.write(to: url)
-            print("🔧 Configurações salvas em \(url.path)")
+            Log.debug("🔧 Configurações salvas em \(url.path)")
         } catch {
-            print("⚠️ Falha ao salvar configurações: \(error.localizedDescription)")
+            Log.error("⚠️ Falha ao salvar configurações: \(error.localizedDescription)")
         }
     }
 
@@ -209,10 +209,10 @@ struct Config: Decodable {
             do {
                 let data = try Data(contentsOf: url)
                 let config = try JSONDecoder().decode(Config.self, from: data)
-                print("🔑 Configuração carregada de \(url.path)")
+                Log.debug("🔑 Configuração carregada de \(url.path)")
                 return config
             } catch {
-                print("⚠️ Não consegui ler \(url.path): \(error.localizedDescription)")
+                Log.error("⚠️ Não consegui ler \(url.path): \(error.localizedDescription)")
             }
         }
         return Config(anthropicApiKey: nil, elevenLabsApiKey: nil)

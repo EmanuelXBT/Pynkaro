@@ -33,7 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // Sem ícone no Dock; o app vive na menu bar.
         NSApp.setActivationPolicy(.accessory)
-        print("🤖 Pynkaro — assistente de voz local para macOS")
+        Log.debug("🤖 Pynkaro — assistente de voz local para macOS")
 
         buildStatusItem()
 
@@ -76,10 +76,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         URLSession.shared.dataTask(with: req) { [weak self] _, response, _ in
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             guard status != 200 else {
-                print("✅ Kokoro no ar: \(kokoroURL)")
+                Log.debug("✅ Kokoro no ar: \(kokoroURL)")
                 return
             }
-            print("⚠️ Kokoro não respondeu (\(kokoroURL), HTTP \(status)). Tentando reiniciar o LaunchAgent...")
+            Log.error("⚠️ Kokoro não respondeu (\(kokoroURL), HTTP \(status)). Tentando reiniciar o LaunchAgent...")
             ServiceManager.shared.kickstart(label: "com.pynkaro.kokoro")
             // Re-verifica após o relançamento (o servidor leva ~2-3 s).
             DispatchQueue.global().asyncAfter(deadline: .now() + 3.0) { [weak self] in
@@ -94,9 +94,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         URLSession.shared.dataTask(with: req) { _, response, _ in
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             if status == 200 {
-                print("✅ Kokoro restaurado após reinício do LaunchAgent.")
+                Log.debug("✅ Kokoro restaurado após reinício do LaunchAgent.")
             } else {
-                print("⚠️ Kokoro segue fora do ar (HTTP \(status)). Usando a voz do sistema como fallback.")
+                Log.error("⚠️ Kokoro segue fora do ar (HTTP \(status)). Usando a voz do sistema como fallback.")
             }
         }.resume()
     }

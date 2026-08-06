@@ -38,7 +38,7 @@ final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
         self.voiceId = env["ELEVENLABS_VOICE_ID"] ?? "f016iUUEKqhX0trYHH6Q"
         self.model = env["ELEVENLABS_MODEL"] ?? "eleven_multilingual_v2"
         super.init()
-        print("🗣️ Voz: ElevenLabs (modelo \(model), voice_id \(voiceId))")
+        Log.debug("🗣️ Voz: ElevenLabs (modelo \(model), voice_id \(voiceId))")
     }
 
     func speak(_ text: String, completion: @escaping () -> Void) {
@@ -65,11 +65,11 @@ final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
                 let status = (response as? HTTPURLResponse)?.statusCode ?? 0
                 guard error == nil, status == 200, let data, !data.isEmpty else {
                     if let error {
-                        print("⚠️ ElevenLabs: \(error.localizedDescription)")
+                        Log.error("⚠️ ElevenLabs: \(error.localizedDescription)")
                     } else if let data, let detail = String(data: data, encoding: .utf8) {
-                        print("⚠️ ElevenLabs (HTTP \(status)): \(detail.prefix(200))")
+                        Log.error("⚠️ ElevenLabs (HTTP \(status)): \(detail.prefix(200))")
                     } else {
-                        print("⚠️ ElevenLabs: HTTP \(status)")
+                        Log.error("⚠️ ElevenLabs: HTTP \(status)")
                     }
                     self.fallbackSpeak(text)
                     return
@@ -77,7 +77,7 @@ final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
                 guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let audioB64 = json["audio_base64"] as? String,
                       let audioData = Data(base64Encoded: audioB64) else {
-                    print("⚠️ ElevenLabs: resposta sem áudio válido.")
+                    Log.error("⚠️ ElevenLabs: resposta sem áudio válido.")
                     self.fallbackSpeak(text)
                     return
                 }
@@ -107,7 +107,7 @@ final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
                         self.startVisemeTimer()
                     }
                 } catch {
-                    print("⚠️ Falha ao tocar o áudio: \(error.localizedDescription)")
+                    Log.error("⚠️ Falha ao tocar o áudio: \(error.localizedDescription)")
                     self.fallbackSpeak(text)
                 }
             }
@@ -217,7 +217,7 @@ final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
     }
 
     private func fallbackSpeak(_ text: String) {
-        print("   Usando a voz do sistema como fallback.")
+        Log.error("   Usando a voz do sistema como fallback.")
         fallback.onMouthLevel = onMouthLevel
         let callback = completion
         completion = nil

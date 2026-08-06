@@ -95,9 +95,9 @@ final class ClaudeClient {
         webSearchEnabled = env["PYNKARO_WEB_SEARCH"] != "0"
         if ollamaBaseURL != nil {
             let label = Config.operationMode == .mac ? "local (Mac)" : "Umbrel"
-            print("🤖 Modo \(label): LLM via Ollama (\(ollamaModel)) em \(ollamaBaseURL!)")
+            Log.debug("🤖 Modo \(label): LLM via Ollama (\(ollamaModel)) em \(ollamaBaseURL!)")
         } else if webSearchEnabled {
-            print("🌐 Busca na web habilitada (desative com PYNKARO_WEB_SEARCH=0).")
+            Log.debug("🌐 Busca na web habilitada (desative com PYNKARO_WEB_SEARCH=0).")
         }
     }
 

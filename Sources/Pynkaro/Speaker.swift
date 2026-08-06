@@ -34,10 +34,10 @@ final class Speaker: NSObject, Speaking, AVSpeechSynthesizerDelegate {
             case .enhanced: quality = "aprimorada"
             default: quality = "padrão"
             }
-            print("🗣️ Voz: \(voice.name) (\(quality))")
+            Log.debug("🗣️ Voz: \(voice.name) (\(quality))")
             if voice.quality == .default {
-                print("   Dica: baixe o Felipe (Aprimorada) em Ajustes > Acessibilidade >")
-                print("   Conteúdo Falado > Voz do Sistema > Gerenciar Vozes, para uma voz muito mais natural.")
+                Log.debug("   Dica: baixe o Felipe (Aprimorada) em Ajustes > Acessibilidade >")
+                Log.debug("   Conteúdo Falado > Voz do Sistema > Gerenciar Vozes, para uma voz muito mais natural.")
             }
         }
     }
@@ -51,7 +51,7 @@ final class Speaker: NSObject, Speaking, AVSpeechSynthesizerDelegate {
             if let v = all.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
                 return v
             }
-            print("⚠️ Voz \"\(name)\" não encontrada; usando a melhor pt-BR disponível.")
+            Log.error("⚠️ Voz \"\(name)\" não encontrada; usando a melhor pt-BR disponível.")
         }
         let ptVoices = all.filter { $0.language == "pt-BR" }
         let maleVoices = ptVoices.filter { $0.gender == .male }

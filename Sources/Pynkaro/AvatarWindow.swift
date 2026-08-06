@@ -65,16 +65,16 @@ final class AvatarWindow {
                 let riveView = viewModel.createRiveView()
                 riveView.frame = NSRect(origin: .zero, size: size)
                 configureWindow(with: riveView, size: size)
-                print("🎭 Avatar Rive carregado (avatar.riv), input \"\(AvatarWindow.riveInputName)\".")
+                Log.debug("🎭 Avatar Rive carregado (avatar.riv), input \"\(AvatarWindow.riveInputName)\".")
                 return
             }
-            print("   Tentando o modo de sprites PNG...")
+            Log.debug("   Tentando o modo de sprites PNG...")
         }
 
         // 2) Sprites PNG.
         guard let image = AvatarWindow.loadImage(named: "avatar") else {
-            print("⚠️ Nem avatar.riv nem avatar.png encontrados (raiz do projeto ou")
-            print("   ~/.config/pynkaro/); o avatar não será exibido.")
+            Log.error("⚠️ Nem avatar.riv nem avatar.png encontrados (raiz do projeto ou")
+            Log.error("   ~/.config/pynkaro/); o avatar não será exibido.")
             return
         }
         sprites[0] = image
@@ -83,9 +83,9 @@ final class AvatarWindow {
         if let round = AvatarWindow.loadImage(named: "avatar_round") { sprites[3] = round }
         if let fv = AvatarWindow.loadImage(named: "avatar_fv") { sprites[4] = fv }
         if sprites.count == 1 {
-            print("💋 Para animar a boca, adicione avatar_mid.png (entreaberta) e")
-            print("   avatar_open.png (aberta) junto do avatar.png. Opcionais:")
-            print("   avatar_round.png (o/u) e avatar_fv.png (f/v) para mais realismo.")
+            Log.debug("💋 Para animar a boca, adicione avatar_mid.png (entreaberta) e")
+            Log.debug("   avatar_open.png (aberta) junto do avatar.png. Opcionais:")
+            Log.debug("   avatar_round.png (o/u) e avatar_fv.png (f/v) para mais realismo.")
         }
 
         // Redimensiona mantendo a proporção, com lado maior de 600 pt.
@@ -196,7 +196,7 @@ final class AvatarWindow {
                 ?? "State Machine 1"
             return RiveViewModel(model, stateMachineName: stateMachine)
         } catch {
-            print("⚠️ Falha ao carregar avatar.riv: \(error.localizedDescription)")
+            Log.error("⚠️ Falha ao carregar avatar.riv: \(error.localizedDescription)")
             return nil
         }
     }

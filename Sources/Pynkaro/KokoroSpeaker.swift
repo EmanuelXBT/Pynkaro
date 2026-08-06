@@ -36,7 +36,7 @@ final class KokoroSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
         self.model = env["PYNKARO_KOKORO_MODEL"] ?? "kokoro"
         super.init()
         let label = Config.operationMode == .mac ? "local (Mac)" : "Umbrel"
-        print("🗣️ Voz: Kokoro (\(label) \(baseURL), voice \(voice))")
+        Log.debug("🗣️ Voz: Kokoro (\(label) \(baseURL), voice \(voice))")
     }
 
     func speak(_ text: String, completion: @escaping () -> Void) {
@@ -67,10 +67,10 @@ final class KokoroSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
                 let status = (response as? HTTPURLResponse)?.statusCode ?? 0
                 guard error == nil, status == 200, let data, !data.isEmpty else {
                     if let error {
-                        print("⚠️ Kokoro: \(error.localizedDescription)")
+                        Log.error("⚠️ Kokoro: \(error.localizedDescription)")
                     } else {
                         let detail = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
-                        print("⚠️ Kokoro (HTTP \(status)): \(detail.prefix(200))")
+                        Log.error("⚠️ Kokoro (HTTP \(status)): \(detail.prefix(200))")
                     }
                     self.fallbackSpeak(text)
                     return
@@ -86,7 +86,7 @@ final class KokoroSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
                     player.play()
                     self.startMetering()  // Kokoro: lip sync por amplitude
                 } catch {
-                    print("⚠️ Kokoro: falha ao tocar o áudio: \(error.localizedDescription)")
+                    Log.error("⚠️ Kokoro: falha ao tocar o áudio: \(error.localizedDescription)")
                     self.fallbackSpeak(text)
                 }
             }
@@ -134,7 +134,7 @@ final class KokoroSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
     }
 
     private func fallbackSpeak(_ text: String) {
-        print("   Usando a voz do sistema como fallback.")
+        Log.error("   Usando a voz do sistema como fallback.")
         fallback.onMouthLevel = onMouthLevel
         let callback = completion
         completion = nil

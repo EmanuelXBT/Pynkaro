@@ -79,13 +79,13 @@ final class VoiceAssistant: NSObject {
         lastTranscript = ""
         state = .waitingWakeWord
         isPaused = true
-        print("⏸️ Escuta pausada.")
+        Log.debug("⏸️ Escuta pausada.")
     }
 
     func resume() {
         guard isPaused else { return }
         isPaused = false
-        print("👂 Escuta retomada. Aguardando \"\(wakeWords[0])\"...")
+        Log.debug("👂 Escuta retomada. Aguardando \"\(wakeWords[0])\"...")
         restartListening()
     }
 
@@ -98,14 +98,14 @@ final class VoiceAssistant: NSObject {
     func start() {
         SFSpeechRecognizer.requestAuthorization { [weak self] auth in
             guard auth == .authorized else {
-                print("❌ Permissão de reconhecimento de fala negada.")
-                print("   Habilite em Ajustes do Sistema > Privacidade e Segurança > Reconhecimento de Fala.")
+                Log.error("❌ Permissão de reconhecimento de fala negada.")
+                Log.error("   Habilite em Ajustes do Sistema > Privacidade e Segurança > Reconhecimento de Fala.")
                 exit(1)
             }
             AVCaptureDevice.requestAccess(for: .audio) { granted in
                 guard granted else {
-                    print("❌ Permissão de microfone negada.")
-                    print("   Habilite em Ajustes do Sistema > Privacidade e Segurança > Microfone.")
+                    Log.error("❌ Permissão de microfone negada.")
+                    Log.error("   Habilite em Ajustes do Sistema > Privacidade e Segurança > Microfone.")
                     exit(1)
                 }
                 DispatchQueue.main.async { self?.setup() }
@@ -115,11 +115,11 @@ final class VoiceAssistant: NSObject {
 
     private func setup() {
         if recognizer.isOnDevice {
-            print("🔒 Reconhecimento de fala 100% local (on-device).")
+            Log.debug("🔒 Reconhecimento de fala 100% local (on-device).")
         } else {
-            print("⚠️ Este Mac não suporta reconhecimento on-device em pt-BR;")
-            print("   o áudio será processado nos servidores da Apple.")
-            print("   (Baixe o idioma em Ajustes > Teclado > Ditado para ativar o modo local.)")
+            Log.error("⚠️ Este Mac não suporta reconhecimento on-device em pt-BR;")
+            Log.error("   o áudio será processado nos servidores da Apple.")
+            Log.error("   (Baixe o idioma em Ajustes > Teclado > Ditado para ativar o modo local.)")
         }
 
         // Favorece a wake word na transcrição (palavra rara no dia a dia).
@@ -146,7 +146,7 @@ final class VoiceAssistant: NSObject {
 
         emitStatus()
         restartListening()
-        print("👂 Aguardando \"\(wakeWords[0])\"... (Ctrl+C para sair)")
+        Log.debug("👂 Aguardando \"\(wakeWords[0])\"... (Ctrl+C para sair)")
     }
 
     // MARK: - Escuta
@@ -157,7 +157,7 @@ final class VoiceAssistant: NSObject {
         do {
             try recognizer.startListening()
         } catch {
-            print("⚠️ Falha ao iniciar o áudio: \(error.localizedDescription). Tentando de novo em 2s...")
+            Log.error("⚠️ Falha ao iniciar o áudio: \(error.localizedDescription). Tentando de novo em 2s...")
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
                 self?.restartListening()
             }
@@ -187,7 +187,7 @@ final class VoiceAssistant: NSObject {
                 text.range(of: $0, options: [.caseInsensitive, .diacriticInsensitive]) != nil
             }) {
                 state = .capturingQuestion
-                print("🎤 Pode falar...")
+                Log.debug("🎤 Pode falar...")
                 avatar.show()
                 updateQuestion(from: text)
             }
@@ -208,7 +208,7 @@ final class VoiceAssistant: NSObject {
         // Só rearma o timer de silêncio quando o texto realmente mudou.
         guard transcript != lastTranscript else { return }
         lastTranscript = transcript
-        print("📝 Ouvido: \(transcript)")
+        Log.debug("📝 Ouvido: \(transcript)")
 
         // A pergunta é tudo que vem depois da última ocorrência da wake word
         // (considerando todas as variantes).
@@ -251,7 +251,7 @@ final class VoiceAssistant: NSObject {
     /// Aborta a captura sem consultar o Claude: o avatar some em silêncio.
     private func cancelCapture() {
         guard state == .capturingQuestion else { return }
-        print("🙈 Cancelado (\"esquece\"). Voltando a aguardar.")
+        Log.debug("🙈 Cancelado (\"esquece\"). Voltando a aguardar.")
         silenceTimer?.invalidate()
         recognizer.stopListening()
         avatar.hide()
@@ -282,7 +282,7 @@ final class VoiceAssistant: NSObject {
         lastTranscript = ""
 
         guard !q.isEmpty else {
-            print("😴 Nenhuma pergunta detectada. Voltando a aguardar.")
+            Log.debug("😴 Nenhuma pergunta detectada. Voltando a aguardar.")
             avatar.hide()
             state = .waitingWakeWord
             restartListening()
@@ -290,7 +290,7 @@ final class VoiceAssistant: NSObject {
         }
 
         state = .thinking
-        print("🧠 Pergunta: \(q)")
+        Log.debug("🧠 Pergunta: \(q)")
         claude.ask(q) { [weak self] result in
             DispatchQueue.main.async { self?.handleAnswer(result) }
         }
@@ -302,18 +302,18 @@ final class VoiceAssistant: NSObject {
         case .success(let text):
             reply = text
         case .failure(let error):
-            print("⚠️ Erro na API: \(error.localizedDescription)")
+            Log.error("⚠️ Erro na API: \(error.localizedDescription)")
             reply = "Desculpe, não consegui falar com a inteligência artificial agora."
         }
 
-        print("💬 \(reply)")
+        Log.debug("💬 \(reply)")
         state = .speaking
         avatar.setCaption(reply)
         // Resposta ampla (acima do limite de fala curta): mostra o texto
         // completo na janela de leitura enquanto fala o resumo.
         let wordCount = reply.split(whereSeparator: \.isWhitespace).count
         if wordCount > 45 {
-            print("📖 Resposta ampla (\(wordCount) palavras) — abrindo janela de leitura.")
+            Log.debug("📖 Resposta ampla (\(wordCount) palavras) — abrindo janela de leitura.")
             AnswerWindow.shared.show(reply)
         }
         // Escuta ativa DURANTE a fala: permite interromper com "esquece".
@@ -328,7 +328,7 @@ final class VoiceAssistant: NSObject {
             self.avatar.hide()
             AnswerWindow.shared.hide()
             self.state = .waitingWakeWord
-            print("👂 Aguardando \"\(wakeWords[0])\"...")
+            Log.debug("👂 Aguardando \"\(wakeWords[0])\"...")
             self.restartListening()
         }
     }
@@ -338,7 +338,7 @@ final class VoiceAssistant: NSObject {
     /// fecha a janela de leitura e volta ao estado de aguardar.
     private func cancelSpeaking() {
         guard state == .speaking else { return }
-        print("⏹️ Resposta interrompida (\"esquece\").")
+        Log.debug("⏹️ Resposta interrompida (\"esquece\").")
         speaker.stop()
     }
 }

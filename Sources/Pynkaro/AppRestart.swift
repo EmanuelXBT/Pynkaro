@@ -22,7 +22,7 @@ enum AppRestart {
         do {
             try task.run()
         } catch {
-            print("⚠️ Falha ao relançar o app: \(error.localizedDescription)")
+            Log.error("⚠️ Falha ao relançar o app: \(error.localizedDescription)")
         }
         // Pequena espera para o novo processo iniciar antes de encerrar o
         // atual (evita perder o terminal no modo `swift run`).

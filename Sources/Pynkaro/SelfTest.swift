@@ -122,6 +122,14 @@ enum SelfTest {
         check("uiLanguage é pt, en ou system",
               ul == "pt" || ul == "en" || ul == "system")
 
+        // MARK: Config tuning (num_predict/num_ctx/temperature)
+        check("numPredict default >= 100",
+              Config.numPredict >= 100)
+        check("numCtx default >= 2048",
+              Config.numCtx >= 2048)
+        check("temperature entre 0 e 1",
+              Config.temperature >= 0 && Config.temperature <= 1)
+
         print("")
         if failures == 0 {
             print("✅ SELFTEST OK — \(passed) verificações passaram")

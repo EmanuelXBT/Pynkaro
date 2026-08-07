@@ -208,6 +208,9 @@ cp config.json ~/.config/pynkaro/config.json
 | `kokoro_voice` | Voz pt-BR do Kokoro (padrão: `pm_alex`) |
 | `searxng_url` | Base URL do SearXNG (ex.: `http://umbrel.local:8080`) — **habilita busca na web no modo Umbrel** |
 | `wake_words` | Lista de wake words (ex.: `["pincaro", "jupiter"]`) — todas ativam o assistente |
+| `num_predict` | *(opcional)* máx. de tokens de resposta do Ollama (padrão: `250` — cobre respostas amplas de ~150 palavras; reduza p/ `100-150` em hardware lento) |
+| `num_ctx` | *(opcional)* janela de contexto do Ollama (padrão: `4096`; máquinas com pouca RAM: `2048`) |
+| `temperature` | *(opcional)* temperatura do modelo (padrão: `0.7`) |
 | `intro_enabled` | *(opcional, default `false`)* apresentação pré-definida: com `true`, dizer **"se apresente"** responde um roteiro fixo (IntroScript) sem consultar o LLM — útil para demonstração/vídeo. Alternativa: `PYNKARO_INTRO_ENABLED=1` |
 | `anthropic_api_key` | *(opcional)* chave da Anthropic — só para o modo nuvem |
 | `elevenlabs_api_key` | *(opcional)* chave da ElevenLabs — só para o modo nuvem |
@@ -225,6 +228,9 @@ cp config.json ~/.config/pynkaro/config.json
 | `PYNKARO_MODEL` | `claude-sonnet-5` | Modelo da Anthropic (modo nuvem) |
 | `PYNKARO_VOICE` | melhor voz masculina pt-BR | Voz do sistema (fallback) |
 | `PYNKARO_WAKE_WORD` | `pincaro` | Wake word (acentos/maiúsculas ignorados) |
+| `PYNKARO_NUM_PREDICT` | `250` | Máx. de tokens de resposta do Ollama (equivale a `num_predict`) |
+| `PYNKARO_NUM_CTX` | `4096` | Janela de contexto do Ollama (equivale a `num_ctx`) |
+| `PYNKARO_TEMPERATURE` | `0.7` | Temperatura do modelo (equivale a `temperature`) |
 | `PYNKARO_WEB_SEARCH` | `1` | Busca na web (só funciona no modo nuvem Anthropic) |
 
 ### Como funciona a escolha de serviços

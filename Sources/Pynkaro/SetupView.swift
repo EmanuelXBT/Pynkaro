@@ -164,7 +164,7 @@ struct SetupView: View {
             kokoroUrl: "http://localhost:8888",
             searxngUrl: Config.searxngBaseURL,
             llmModel: option.modelName,
-            kokoroVoice: "pm_alex",
+            kokoroVoice: Config.kokoroVoice,   // preserva a voz já configurada
             wakeWords: Config.wakeWords,
             speechLocale: nil,
             uiLanguage: nil))

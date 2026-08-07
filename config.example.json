@@ -15,5 +15,9 @@
 
   "ui_language": "system",
 
+  "num_predict": 250,
+  "num_ctx": 4096,
+  "temperature": 0.7,
+
   "intro_enabled": false
 }

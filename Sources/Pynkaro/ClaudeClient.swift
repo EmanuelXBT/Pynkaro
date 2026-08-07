@@ -291,10 +291,13 @@ final class ClaudeClient {
             // Mantém o modelo residente na RAM entre perguntas: elimina o
             // cold start (reload de ~1,9 GB) na primeira pergunta após ocioso.
             "keep_alive": -1,
-            // num_predict segue o limite de ~40 palavras do prompt (e até
-            // ~150 nas respostas amplas); num_ctx 4096 acomoda system prompt
-            // + histórico sem truncar o contexto.
-            "options": ["temperature": 0.7, "num_predict": 250, "num_ctx": 4096]
+            // num_predict/num_ctx/temperature configuráveis (env > config.json)
+            // — veja Config.numPredict/numCtx/temperature. Defaults acomodam o
+            // limite de ~40 palavras (e até ~150 nas respostas amplas) com 4096
+            // de contexto; ajuste em hardware lento para cortar o pior caso.
+            "options": ["temperature": Config.temperature,
+                        "num_predict": Config.numPredict,
+                        "num_ctx": Config.numCtx]
         ]
 
         let endpoint = baseURL.hasSuffix("/v1")

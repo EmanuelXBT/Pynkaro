@@ -37,6 +37,12 @@ struct Config: Decodable {
     /// Idioma da interface: "pt", "en" ou "system" (default: "system").
     /// Resolução: env var PYNKARO_UI_LANGUAGE > config.json (ui_language).
     var uiLanguage: String?
+    /// Tuning do Ollama — configurável para qualquer hardware (env >
+    /// config.json > default). Defaults seguros: resposta até 250 tokens
+    /// (cobre as respostas amplas de ~150 palavras), contexto 4096.
+    var numPredict: Int?
+    var numCtx: Int?
+    var temperature: Double?
 
     enum CodingKeys: String, CodingKey {
         case anthropicApiKey = "anthropic_api_key"
@@ -51,6 +57,9 @@ struct Config: Decodable {
         case mode = "mode"
         case speechLocale = "speech_locale"
         case uiLanguage = "ui_language"
+        case numPredict = "num_predict"
+        case numCtx = "num_ctx"
+        case temperature = "temperature"
     }
 
     static let shared = load()
@@ -144,6 +153,27 @@ struct Config: Decodable {
         env("PYNKARO_UI_LANGUAGE") ?? shared.uiLanguage ?? "system"
     }
 
+    /// Máx. de tokens de resposta (tetos: 40 palavras ~60 tok; resposta ampla
+    /// ~150 palavras ~200 tok). Default 250 cobre a ampla com folga. Em
+    /// hardware lento, reduzir para 100-150 corta o pior caso de decode.
+    /// Resolução: env var PYNKARO_NUM_PREDICT > config.json (num_predict) > 250.
+    static var numPredict: Int {
+        envInt("PYNKARO_NUM_PREDICT") ?? shared.numPredict ?? 250
+    }
+
+    /// Janela de contexto do Ollama. 4096 acomoda system prompt + histórico
+    /// sem truncar; máquinas com pouca RAM podem usar 2048.
+    /// Resolução: env var PYNKARO_NUM_CTX > config.json (num_ctx) > 4096.
+    static var numCtx: Int {
+        envInt("PYNKARO_NUM_CTX") ?? shared.numCtx ?? 4096
+    }
+
+    /// Temperatura do modelo. 0.7 equilibra criatividade/determinismo.
+    /// Resolução: env var PYNKARO_TEMPERATURE > config.json (temperature) > 0.7.
+    static var temperature: Double {
+        envDouble("PYNKARO_TEMPERATURE") ?? shared.temperature ?? 0.7
+    }
+
     /// Modos de operação suportados pelo Pynkaro.
     enum PynkaroMode: String {
         /// Tudo roda no próprio Mac (Ollama local + Kokoro via LaunchAgent).
@@ -193,6 +223,14 @@ struct Config: Decodable {
     private static func env(_ key: String) -> String? {
         let value = ProcessInfo.processInfo.environment[key]
         return (value?.isEmpty ?? true) ? nil : value
+    }
+
+    private static func envInt(_ key: String) -> Int? {
+        env(key).flatMap { Int($0) }
+    }
+
+    private static func envDouble(_ key: String) -> Double? {
+        env(key).flatMap { Double($0) }
     }
 
     // MARK: - Escrita (janela de Configurações)

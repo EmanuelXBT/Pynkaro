@@ -260,7 +260,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let window = NSWindow(contentViewController: NSHostingController(rootView: view))
         window.title = onboarding ? L10n.welcomeTitle : L10n.settingsTitle
         window.styleMask = [.titled, .closable, .resizable]
-        window.minSize = NSSize(width: 580, height: 420)
+        window.minSize = NSSize(width: 580, height: 560)
         window.isReleasedWhenClosed = false
         window.center()
         settingsWindow = window
@@ -360,7 +360,6 @@ struct SettingsView: View {
 
             if showLogs {
                 LogsPanel()
-                    .frame(minHeight: 180, maxHeight: 300)
             }
 
             // Idioma da interface (todos os modos)

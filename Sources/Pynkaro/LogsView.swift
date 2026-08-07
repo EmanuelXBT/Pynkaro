@@ -11,9 +11,6 @@ struct LogsPanel: View {
             HStack(spacing: 8) {
                 Text(L10n.logsButton)
                     .font(.subheadline).bold()
-                Text("(erros sempre; detalhes só em modo dev)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 Spacer()
                 Button(L10n.logsCopy) { copyLogs() }
                     .disabled(store.entries.isEmpty)

@@ -290,6 +290,7 @@ final class VoiceAssistant: NSObject {
         }
 
         state = .thinking
+        avatar.setCaption("Pensando…")
         Log.debug("🧠 Pergunta: \(q)")
 
         // Apresentação pré-definida ("se apresente"): responde o roteiro

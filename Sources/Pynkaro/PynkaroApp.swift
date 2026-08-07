@@ -352,9 +352,9 @@ struct SettingsView: View {
             } else if mode == 0 || mode == 1 {
                 // Opções do servidor local (Mac ou Umbrel)
                 let isMac = mode == 0
-                let ollamaPlaceholder = isMac ? "http://localhost:11434/v1" : "http://192.168.0.189:11434/v1"
-                let kokoroPlaceholder = isMac ? "http://localhost:8888" : "http://192.168.0.189:8880"
-                let searxngPlaceholder = isMac ? "http://localhost:8080" : "http://192.168.0.189:8080"
+                let ollamaPlaceholder = isMac ? "http://localhost:11434/v1" : "http://umbrel.local:11434/v1"
+                let kokoroPlaceholder = isMac ? "http://localhost:8888" : "http://umbrel.local:8880"
+                let searxngPlaceholder = isMac ? "http://localhost:8080" : "http://umbrel.local:8080"
                 VStack(alignment: .leading, spacing: 6) {
                     Text(isMac ? "Servidor local (Mac)" : "Servidor local (Umbrel)").font(.subheadline).bold()
                     field("Ollama URL", text: $ollamaUrl, placeholder: ollamaPlaceholder)

@@ -30,7 +30,7 @@ enum SelfTest {
         check("inferMode(127.0.0.1) == .mac",
               Config.inferMode(ollamaURL: "http://127.0.0.1:11434/v1") == .mac)
         check("inferMode(IP LAN) == .umbrel",
-              Config.inferMode(ollamaURL: "http://192.168.0.189:11434/v1") == .umbrel)
+              Config.inferMode(ollamaURL: "http://192.0.2.1:11434/v1") == .umbrel)
         check("inferMode(umbrel.local) == .umbrel",
               Config.inferMode(ollamaURL: "http://umbrel.local:11434/v1") == .umbrel)
 

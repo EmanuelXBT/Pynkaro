@@ -89,7 +89,7 @@ struct Config: Decodable {
         env("PYNKARO_KOKORO_VOICE") ?? shared.kokoroVoice ?? "pm_alex"
     }
 
-    /// Base URL do SearXNG (ex.: http://192.168.0.189:8080). Se definida,
+    /// Base URL do SearXNG (ex.: http://umbrel.local:8080). Se definida,
     /// o Pynkaro busca na web antes de montar o prompt do Ollama.
     /// Resolução: env var PYNKARO_SEARXNG_URL > config.json (searxng_url).
     static var searxngBaseURL: String? {

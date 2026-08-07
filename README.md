@@ -108,7 +108,7 @@ EOF
 
 ### Voltar ao modo Umbrel
 
-Use **Configurações → Servidor local (Umbrel)** e salve — ou edite `~/.config/pynkaro/config.json` trocando `localhost` pelos endereços do servidor (ex.: `http://192.168.0.189:11434/v1`) e o `mode` para `"umbrel"`, e reinicie.
+Use **Configurações → Servidor local (Umbrel)** e salve — ou edite `~/.config/pynkaro/config.json` trocando `localhost` pelos endereços do servidor (ex.: `http://umbrel.local:11434/v1`) e o `mode` para "umbrel", e reinicie.
 
 ## 🚀 Modo Umbrel (servidor na LAN)
 
@@ -135,7 +135,7 @@ cat > config.json << 'EOF'
 EOF
 ```
 
-> **Se `umbrel.local` não resolver no seu Mac**, use o IP do servidor (ex.: `http://192.168.0.189:11434/v1`).
+> **Se `umbrel.local` não resolver no seu Mac**, use o IP do servidor (ex.: `http://192.168.0.X:11434/v1`).
 
 ### 3. Porta do Kokoro (uma única configuração manual)
 

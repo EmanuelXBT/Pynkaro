@@ -291,6 +291,7 @@ struct SettingsView: View {
     @State private var kokoroVoices: [String] = []
     @State private var supportedLocales: [String] = []
     @State private var showAllVoices = false
+    @State private var showLogs = false
 
     init(isOnboarding: Bool, onSaved: (() -> Void)? = nil) {
         self.isOnboarding = isOnboarding
@@ -331,29 +332,35 @@ struct SettingsView: View {
 
             // Modo de operação
             VStack(alignment: .leading, spacing: 4) {
-                Text("Modo de operação").font(.subheadline).bold()
+                HStack {
+                    Text("Modo de operação").font(.subheadline).bold()
+                    Spacer()
+                    Button(action: { showLogs.toggle() }) {
+                        Label("Logs", systemImage: showLogs ? "chevron.down" : "chevron.right")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+                }
                 Picker("", selection: $mode) {
                     Text("Mac").tag(0)
                     Text("Umbrel").tag(1)
                     Text("API paga").tag(2)
-                    Text("Logs").tag(3)
                 }
                 .pickerStyle(.segmented)
-                if mode != 3 {
-                    Text(mode == 0
-                         ? "LLM (Ollama) e voz (Kokoro) rodam 100% no seu Mac. Nenhuma chave é necessária."
-                         : mode == 1
-                         ? "LLM e voz rodam na sua Umbrel (Ollama, Kokoro, SearXNG). Nenhuma chave é necessária."
-                         : "LLM via Anthropic e voz via ElevenLabs. Requer chaves de API.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                Text(mode == 0
+                     ? "LLM (Ollama) e voz (Kokoro) rodam 100% no seu Mac. Nenhuma chave é necessária."
+                     : mode == 1
+                     ? "LLM e voz rodam na sua Umbrel (Ollama, Kokoro, SearXNG). Nenhuma chave é necessária."
+                     : "LLM via Anthropic e voz via ElevenLabs. Requer chaves de API.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
-            if mode == 3 {
-                // Painel de logs (erros sempre; detalhes só em modo dev).
+            if showLogs {
                 LogsPanel()
-            } else if mode == 0 || mode == 1 {
+            }
+
+            if mode == 0 || mode == 1 {
                 // Opções do servidor local (Mac ou Umbrel)
                 let isMac = mode == 0
                 let ollamaPlaceholder = isMac ? "http://localhost:11434/v1" : "http://umbrel.local:11434/v1"
@@ -459,19 +466,17 @@ struct SettingsView: View {
                 }
             }
 
-            if mode != 3 {
-                Text("Chaves são salvas no Keychain; opções de servidor no config.json. Reinicie o app para aplicar.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            Text("Chaves são salvas no Keychain; opções de servidor no config.json. Reinicie o app para aplicar.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-                HStack {
-                    Spacer()
-                    Button(isOnboarding ? "Salvar e começar" : "Salvar") {
-                        save()
-                    }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(mode == 2 && anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
+            HStack {
+                Spacer()
+                Button(isOnboarding ? "Salvar e começar" : "Salvar") {
+                    save()
                 }
+                .keyboardShortcut(.defaultAction)
+                .disabled(mode == 2 && anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
         .textFieldStyle(.roundedBorder)

@@ -361,6 +361,7 @@ struct SettingsView: View {
 
             if showLogs {
                 LogsPanel()
+                    .frame(minHeight: 180, maxHeight: 300)
             }
 
             if mode == 0 || mode == 1 {

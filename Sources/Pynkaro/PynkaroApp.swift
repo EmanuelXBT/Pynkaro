@@ -332,7 +332,15 @@ struct SettingsView: View {
 
             // Modo de operação
             VStack(alignment: .leading, spacing: 4) {
-                Text(L10n.operationMode).font(.subheadline).bold()
+                HStack {
+                    Text(L10n.operationMode).font(.subheadline).bold()
+                    Spacer()
+                    Button(action: { showLogs.toggle() }) {
+                        Label(L10n.logsButton, systemImage: showLogs ? "chevron.down" : "chevron.right")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+                }
                 Picker("", selection: $mode) {
                     Text(L10n.modeMac).tag(0)
                     Text(L10n.modeUmbrel).tag(1)
@@ -347,17 +355,6 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
-            Divider()
-
-            Button(action: { showLogs.toggle() }) {
-                HStack {
-                    Image(systemName: showLogs ? "chevron.down" : "chevron.right")
-                        .font(.caption)
-                    Text(L10n.logsButton)
-                }
-            }
-            .buttonStyle(.borderless)
 
             if showLogs {
                 LogsPanel()

@@ -6,15 +6,20 @@ import Foundation
 /// Uso: `L10n.listening` → "Ouvindo…" (pt) / "Listening…" (en).
 enum L10n {
 
-    /// Código do idioma atual do sistema ("pt", "en", ...).
-    static let language: String = {
-        Locale.current.language.languageCode?.identifier ?? "pt"
-    }()
+    /// Idioma ativo: "pt" = português, "en" = inglês, "system" = detecta do OS.
+    /// Controlado por Config.uiLanguage (env/config.json) com fallback "system".
+    private static var activeLanguage: String {
+        let configured = Config.uiLanguage
+        if configured == "pt" || configured == "en" { return configured }
+        // "system" ou valor inválido: detecta do sistema
+        let system = Locale.current.language.languageCode?.identifier ?? "pt"
+        return system.hasPrefix("pt") ? "pt" : "en"
+    }
 
     /// Retorna a string em português ou inglês conforme o idioma do sistema.
     /// Idiomas além de pt/en caem em português.
     private static func loc(_ pt: String, _ en: String) -> String {
-        language.hasPrefix("pt") ? pt : en
+        activeLanguage.hasPrefix("pt") ? pt : en
     }
 
     // MARK: - Status (menu bar + AssistantController)
@@ -70,6 +75,10 @@ enum L10n {
     static let voiceShowAll     = loc("Mostrar todas as vozes",         "Show all voices")
     static let wakeWordsLabel   = loc("Wake words (separadas por vírgula)", "Wake words (comma separated)")
     static let micLanguageLabel = loc("Idioma do microfone",            "Microphone language")
+    static let uiLanguageLabel  = loc("Idioma da interface",            "Interface language")
+    static let uiLangSystem     = loc("Sistema",                        "System")
+    static let uiLangPT         = loc("Português (BR)",                 "Portuguese (BR)")
+    static let uiLangEN         = loc("Inglês",                         "English")
     static let micDownloadWarn  = loc("⚠️ Este idioma requer download do pacote de voz em Ajustes do Sistema > Teclado > Ditado.",
                                        "⚠️ This language requires downloading the speech pack in System Settings > Keyboard > Dictation.")
     static let anthropicLabel   = loc("Chave da Anthropic (obrigatória)", "Anthropic key (required)")

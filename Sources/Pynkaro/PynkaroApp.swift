@@ -287,6 +287,7 @@ struct SettingsView: View {
     @State private var kokoroVoice: String
     @State private var wakeWordsText: String
     @State private var speechLocale: String
+    @State private var uiLanguage: String
     @State private var ollamaModels: [String] = []
     @State private var kokoroVoices: [String] = []
     @State private var supportedLocales: [String] = []
@@ -316,6 +317,7 @@ struct SettingsView: View {
         _kokoroVoice = State(initialValue: Config.kokoroBaseURL == nil ? "" : Config.kokoroVoice)
         _wakeWordsText = State(initialValue: (Config.wakeWords ?? []).joined(separator: ", "))
         _speechLocale = State(initialValue: Config.speechLocale)
+        _uiLanguage = State(initialValue: Config.uiLanguage)
     }
 
     var body: some View {
@@ -359,6 +361,18 @@ struct SettingsView: View {
             if showLogs {
                 LogsPanel()
                     .frame(minHeight: 180, maxHeight: 300)
+            }
+
+            // Idioma da interface (todos os modos)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.uiLanguageLabel).font(.caption).foregroundStyle(.secondary)
+                Picker("", selection: $uiLanguage) {
+                    Text(L10n.uiLangSystem).tag("system")
+                    Text(L10n.uiLangPT).tag("pt")
+                    Text(L10n.uiLangEN).tag("en")
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
             }
 
             if mode == 0 || mode == 1 {
@@ -668,14 +682,16 @@ struct SettingsView: View {
                 wakeWords: wakeWordsText.split(separator: ",")
                     .map { $0.trimmingCharacters(in: .whitespaces) }
                     .filter { !$0.isEmpty },
-                speechLocale: speechLocale)
+                speechLocale: speechLocale,
+                uiLanguage: uiLanguage)
         } else {
             // Modo API: remove as opções locais (sem ollama_url = modo API)
             // e grava o mode explicitamente.
             Config.saveUmbrelOptions(mode: .api, ollamaUrl: nil, kokoroUrl: nil,
                                      searxngUrl: nil, llmModel: nil,
                                      kokoroVoice: nil, wakeWords: nil,
-                                     speechLocale: nil)
+                                     speechLocale: nil,
+                                     uiLanguage: uiLanguage)
         }
         onSaved?()
         // Reinicia o app para recarregar o Config (opções valem no start).

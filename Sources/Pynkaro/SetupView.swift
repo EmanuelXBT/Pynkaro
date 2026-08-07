@@ -166,7 +166,8 @@ struct SetupView: View {
             llmModel: option.modelName,
             kokoroVoice: "pm_alex",
             wakeWords: Config.wakeWords,
-            speechLocale: nil)
+            speechLocale: nil,
+            uiLanguage: nil)
         restartApp()
     }
 

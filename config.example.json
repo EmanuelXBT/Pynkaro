@@ -13,5 +13,7 @@
 
   "speech_locale": "pt-BR",
 
+  "ui_language": "system",
+
   "intro_enabled": false
 }

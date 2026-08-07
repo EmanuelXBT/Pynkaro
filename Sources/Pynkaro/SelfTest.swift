@@ -109,6 +109,11 @@ enum SelfTest {
         check("speechLocale tem formato xx-XX",
               sl.contains("-") && sl.split(separator: "-").count == 2)
 
+        // MARK: Config.uiLanguage
+        let ul = Config.uiLanguage
+        check("uiLanguage é pt, en ou system",
+              ul == "pt" || ul == "en" || ul == "system")
+
         print("")
         if failures == 0 {
             print("✅ SELFTEST OK — \(passed) verificações passaram")

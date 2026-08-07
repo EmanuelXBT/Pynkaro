@@ -34,6 +34,9 @@ struct Config: Decodable {
     /// Locale do reconhecimento de fala (ex.: "pt-BR", "en-US"). Default "pt-BR".
     /// Resolução: env var PYNKARO_SPEECH_LOCALE > config.json (speech_locale).
     var speechLocale: String?
+    /// Idioma da interface: "pt", "en" ou "system" (default: "system").
+    /// Resolução: env var PYNKARO_UI_LANGUAGE > config.json (ui_language).
+    var uiLanguage: String?
 
     enum CodingKeys: String, CodingKey {
         case anthropicApiKey = "anthropic_api_key"
@@ -47,6 +50,7 @@ struct Config: Decodable {
         case introEnabled = "intro_enabled"
         case mode = "mode"
         case speechLocale = "speech_locale"
+        case uiLanguage = "ui_language"
     }
 
     static let shared = load()
@@ -134,6 +138,12 @@ struct Config: Decodable {
         return map[lang] ?? "pt-BR"
     }
 
+    /// Idioma da interface: "pt", "en" ou "system". Default: "system" (segue o OS).
+    /// Resolução: env var PYNKARO_UI_LANGUAGE > config.json (ui_language) > "system".
+    static var uiLanguage: String {
+        env("PYNKARO_UI_LANGUAGE") ?? shared.uiLanguage ?? "system"
+    }
+
     /// Modos de operação suportados pelo Pynkaro.
     enum PynkaroMode: String {
         /// Tudo roda no próprio Mac (Ollama local + Kokoro via LaunchAgent).
@@ -193,7 +203,8 @@ struct Config: Decodable {
                                   ollamaUrl: String?, kokoroUrl: String?,
                                   searxngUrl: String?, llmModel: String?,
                                   kokoroVoice: String?, wakeWords: [String]?,
-                                  speechLocale: String?) {
+                                  speechLocale: String?,
+                                  uiLanguage: String?) {
         var dict: [String: Any] = ["mode": mode.rawValue]
         if let ollamaUrl, !ollamaUrl.isEmpty { dict["ollama_url"] = ollamaUrl }
         if let kokoroUrl, !kokoroUrl.isEmpty { dict["kokoro_url"] = kokoroUrl }
@@ -202,6 +213,7 @@ struct Config: Decodable {
         if let kokoroVoice, !kokoroVoice.isEmpty { dict["kokoro_voice"] = kokoroVoice }
         if let wakeWords, !wakeWords.isEmpty { dict["wake_words"] = wakeWords }
         if let speechLocale, !speechLocale.isEmpty { dict["speech_locale"] = speechLocale }
+        if let uiLanguage, !uiLanguage.isEmpty, uiLanguage != "system" { dict["ui_language"] = uiLanguage }
 
         let fm = FileManager.default
         let url = fm.homeDirectoryForCurrentUser

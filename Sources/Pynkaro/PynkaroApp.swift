@@ -674,7 +674,7 @@ struct SettingsView: View {
             let effectiveKokoroUrl = kokoroVoice.isEmpty ? nil : kokoroUrl
             let effectiveKokoroVoice = kokoroVoice.isEmpty ? nil : kokoroVoice
             let savedMode: Config.PynkaroMode = (mode == 0) ? .mac : .umbrel
-            Config.saveUmbrelOptions(
+            Config.saveUmbrelOptions(Config.UmbrelOptions(
                 mode: savedMode, ollamaUrl: ollamaUrl, kokoroUrl: effectiveKokoroUrl,
                 searxngUrl: searxngUrl, llmModel: llmModel,
                 kokoroVoice: effectiveKokoroVoice,
@@ -682,15 +682,16 @@ struct SettingsView: View {
                     .map { $0.trimmingCharacters(in: .whitespaces) }
                     .filter { !$0.isEmpty },
                 speechLocale: speechLocale,
-                uiLanguage: uiLanguage)
+                uiLanguage: uiLanguage))
         } else {
             // Modo API: remove as opções locais (sem ollama_url = modo API)
             // e grava o mode explicitamente.
-            Config.saveUmbrelOptions(mode: .api, ollamaUrl: nil, kokoroUrl: nil,
-                                     searxngUrl: nil, llmModel: nil,
-                                     kokoroVoice: nil, wakeWords: nil,
-                                     speechLocale: nil,
-                                     uiLanguage: uiLanguage)
+            Config.saveUmbrelOptions(Config.UmbrelOptions(
+                mode: .api, ollamaUrl: nil, kokoroUrl: nil,
+                searxngUrl: nil, llmModel: nil,
+                kokoroVoice: nil, wakeWords: nil,
+                speechLocale: nil,
+                uiLanguage: uiLanguage))
         }
         onSaved?()
         // Reinicia o app para recarregar o Config (opções valem no start).

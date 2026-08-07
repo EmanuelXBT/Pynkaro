@@ -228,12 +228,9 @@ final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
     }
 
     private func fallbackSpeak(_ text: String) {
-        Log.error("   Usando a voz do sistema como fallback.")
-        fallback.onMouthLevel = onMouthLevel
-        fallback.onSpeechProgress = onSpeechProgress
         let callback = completion
         completion = nil
-        fallback.speak(text) { callback?() }
+        speakViaFallback(text, using: fallback, completion: callback)
     }
 
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {

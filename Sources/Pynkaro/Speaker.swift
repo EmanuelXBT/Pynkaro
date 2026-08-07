@@ -16,6 +16,21 @@ protocol Speaking: AnyObject {
     func stop()
 }
 
+extension Speaking {
+    /// Repassa a fala para o Speaker local (voz do sistema), reencaminhando
+    /// os closures de boca/progresso e disparando o completion ao terminar.
+    /// Implementação única compartilhada pelos speakers de rede (Kokoro e
+    /// ElevenLabs) — antes cada classe tinha uma cópia idêntica.
+    func speakViaFallback(_ text: String,
+                          using fallback: Speaker,
+                          completion: (() -> Void)?) {
+        Log.error("   Usando a voz do sistema como fallback.")
+        fallback.onMouthLevel = onMouthLevel
+        fallback.onSpeechProgress = onSpeechProgress
+        fallback.speak(text) { completion?() }
+    }
+}
+
 /// Converte texto em fala com a voz pt-BR do sistema.
 final class Speaker: NSObject, Speaking, AVSpeechSynthesizerDelegate {
 

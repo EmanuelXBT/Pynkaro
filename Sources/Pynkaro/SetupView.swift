@@ -158,7 +158,7 @@ struct SetupView: View {
     }
 
     private func apply(_ option: SetupOption) {
-        Config.saveUmbrelOptions(
+        Config.saveUmbrelOptions(Config.UmbrelOptions(
             mode: .mac,
             ollamaUrl: option.ollamaUrl,
             kokoroUrl: "http://localhost:8888",
@@ -167,7 +167,7 @@ struct SetupView: View {
             kokoroVoice: "pm_alex",
             wakeWords: Config.wakeWords,
             speechLocale: nil,
-            uiLanguage: nil)
+            uiLanguage: nil))
         restartApp()
     }
 

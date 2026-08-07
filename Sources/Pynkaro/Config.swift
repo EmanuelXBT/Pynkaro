@@ -164,6 +164,21 @@ struct Config: Decodable {
         return .umbrel
     }
 
+    /// Opções persistidas no config.json pela janela de Configurações e pelo
+    /// Instalador. Agrupa os campos que antes eram parâmetros separados de
+    /// saveUmbrelOptions (8 argumentos — long parameter list).
+    struct UmbrelOptions {
+        var mode: PynkaroMode
+        var ollamaUrl: String?
+        var kokoroUrl: String?
+        var searxngUrl: String?
+        var llmModel: String?
+        var kokoroVoice: String?
+        var wakeWords: [String]?
+        var speechLocale: String?
+        var uiLanguage: String?
+    }
+
     /// Modo atual. Usa o campo `mode` do config quando presente; para configs
     /// antigos (sem o campo), infere pela URL: localhost → Mac, IP de rede →
     /// Umbrel, ausente → API. Essa inferência é o que elimina o conflito
@@ -199,21 +214,16 @@ struct Config: Decodable {
     /// Campos vazios são omitidos — sem `ollama_url` o app volta ao modo API.
     /// `mode` é sempre gravado para o seletor de Configurações abrir a aba
     /// correta (mac/umbrel/api), eliminando a ambiguidade da inferência por URL.
-    static func saveUmbrelOptions(mode: PynkaroMode,
-                                  ollamaUrl: String?, kokoroUrl: String?,
-                                  searxngUrl: String?, llmModel: String?,
-                                  kokoroVoice: String?, wakeWords: [String]?,
-                                  speechLocale: String?,
-                                  uiLanguage: String?) {
-        var dict: [String: Any] = ["mode": mode.rawValue]
-        if let ollamaUrl, !ollamaUrl.isEmpty { dict["ollama_url"] = ollamaUrl }
-        if let kokoroUrl, !kokoroUrl.isEmpty { dict["kokoro_url"] = kokoroUrl }
-        if let searxngUrl, !searxngUrl.isEmpty { dict["searxng_url"] = searxngUrl }
-        if let llmModel, !llmModel.isEmpty { dict["llm_model"] = llmModel }
-        if let kokoroVoice, !kokoroVoice.isEmpty { dict["kokoro_voice"] = kokoroVoice }
-        if let wakeWords, !wakeWords.isEmpty { dict["wake_words"] = wakeWords }
-        if let speechLocale, !speechLocale.isEmpty { dict["speech_locale"] = speechLocale }
-        if let uiLanguage, !uiLanguage.isEmpty, uiLanguage != "system" { dict["ui_language"] = uiLanguage }
+    static func saveUmbrelOptions(_ options: UmbrelOptions) {
+        var dict: [String: Any] = ["mode": options.mode.rawValue]
+        if let ollamaUrl = options.ollamaUrl, !ollamaUrl.isEmpty { dict["ollama_url"] = ollamaUrl }
+        if let kokoroUrl = options.kokoroUrl, !kokoroUrl.isEmpty { dict["kokoro_url"] = kokoroUrl }
+        if let searxngUrl = options.searxngUrl, !searxngUrl.isEmpty { dict["searxng_url"] = searxngUrl }
+        if let llmModel = options.llmModel, !llmModel.isEmpty { dict["llm_model"] = llmModel }
+        if let kokoroVoice = options.kokoroVoice, !kokoroVoice.isEmpty { dict["kokoro_voice"] = kokoroVoice }
+        if let wakeWords = options.wakeWords, !wakeWords.isEmpty { dict["wake_words"] = wakeWords }
+        if let speechLocale = options.speechLocale, !speechLocale.isEmpty { dict["speech_locale"] = speechLocale }
+        if let uiLanguage = options.uiLanguage, !uiLanguage.isEmpty, uiLanguage != "system" { dict["ui_language"] = uiLanguage }
 
         let fm = FileManager.default
         let url = fm.homeDirectoryForCurrentUser

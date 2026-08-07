@@ -233,7 +233,7 @@ final class VoiceAssistant: NSObject {
         }
 
         // Legenda ao vivo com o que está sendo ouvido.
-        avatar.setCaption(question.isEmpty ? nil : "Você: \(question)")
+        avatar.setCaption(question.isEmpty ? nil : L10n.youPrefix + question)
         armSilenceTimer()
     }
 
@@ -290,7 +290,7 @@ final class VoiceAssistant: NSObject {
         }
 
         state = .thinking
-        avatar.setCaption("Pensando…")
+        avatar.setCaption(L10n.thinking)
         Log.debug("🧠 Pergunta: \(q)")
 
         // Apresentação pré-definida ("se apresente"): responde o roteiro

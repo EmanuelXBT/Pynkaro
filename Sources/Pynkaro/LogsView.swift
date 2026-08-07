@@ -9,21 +9,21 @@ struct LogsPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Text("Registro de eventos")
+                Text(L10n.logsButton)
                     .font(.subheadline).bold()
                 Text("(erros sempre; detalhes só em modo dev)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button("Copiar") { copyLogs() }
+                Button(L10n.logsCopy) { copyLogs() }
                     .disabled(store.entries.isEmpty)
-                Button("Abrir pasta") { openLogsFolder() }
-                Button("Limpar") { store.clear() }
+                Button(L10n.logsOpenFolder) { openLogsFolder() }
+                Button(L10n.logsClear) { store.clear() }
                     .disabled(store.entries.isEmpty)
             }
 
             if store.entries.isEmpty {
-                Text("Nenhum evento registrado. 🎉")
+                Text(L10n.logsEmpty)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {

@@ -23,12 +23,12 @@ enum AssistantStatus: Equatable {
 
     var label: String {
         switch self {
-        case .starting:  return "Aguardando configuração…"
-        case .waiting:   return "Aguardando \"Píncaro\""
-        case .listening: return "Ouvindo…"
-        case .thinking:  return "Pensando…"
-        case .speaking:  return "Falando…"
-        case .paused:    return "Escuta pausada"
+        case .starting:  return L10n.starting
+        case .waiting:   return L10n.waiting
+        case .listening: return L10n.listening
+        case .thinking:  return L10n.thinking
+        case .speaking:  return L10n.speaking
+        case .paused:    return L10n.paused
         }
     }
 }

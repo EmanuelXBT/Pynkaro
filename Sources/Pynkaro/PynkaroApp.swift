@@ -48,7 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let self else { return }
                 self.refreshStatusIcon()
                 self.pauseItem.title = (AssistantController.shared.status == .paused)
-                    ? "Retomar escuta" : "Pausar escuta"
+                    ? L10n.resumeListening : L10n.pauseListening
             }
 
         // Erros recentes mudam o ícone da menu bar até serem vistos.
@@ -133,12 +133,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(statusLabelItem)
         menu.addItem(.separator())
 
-        pauseItem = NSMenuItem(title: "Pausar escuta",
+        pauseItem = NSMenuItem(title: L10n.pauseListening,
                                action: #selector(togglePause), keyEquivalent: "p")
         pauseItem.target = self
         menu.addItem(pauseItem)
 
-        let setupItem = NSMenuItem(title: "Instalar versão local",
+        let setupItem = NSMenuItem(title: L10n.installLocal,
                                    action: #selector(openSetupGuide), keyEquivalent: "")
         setupItem.target = self
         menu.addItem(setupItem)
@@ -155,21 +155,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             screenMenu.addItem(item)
             return item
         }
-        let screenItem = NSMenuItem(title: "Tela do avatar", action: nil, keyEquivalent: "")
+        let screenItem = NSMenuItem(title: L10n.avatarScreen, action: nil, keyEquivalent: "")
         menu.addItem(screenItem)
         menu.setSubmenu(screenMenu, for: screenItem)
         updateScreenChecks()
 
         menu.addItem(.separator())
 
-        let settingsItem = NSMenuItem(title: "Configurações…",
+        let settingsItem = NSMenuItem(title: L10n.settingsMenu,
                                       action: #selector(openSettingsFromMenu), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
 
         menu.addItem(.separator())
 
-        let quitItem = NSMenuItem(title: "Sair do Pynkaro",
+        let quitItem = NSMenuItem(title: L10n.quitApp,
                                   action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quitItem.target = NSApp
         menu.addItem(quitItem)
@@ -184,7 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             statusItem?.button?.image = NSImage(
                 systemSymbolName: "exclamationmark.triangle.fill",
                 accessibilityDescription: "Pynkaro — erros recentes (veja Configurações > Logs)")
-            statusLabelItem.title = "⚠️ Erros recentes — veja Logs"
+            statusLabelItem.title = L10n.recentErrors
         } else {
             let status = AssistantController.shared.status
             statusItem?.button?.image = NSImage(
@@ -235,7 +235,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hosting.frame = NSRect(x: 0, y: 0, width: 840, height: 660)
             hosting.autoresizingMask = [NSView.AutoresizingMask.width, NSView.AutoresizingMask.height]
             window.contentView = hosting
-            window.title = "Pynkaro — Configuração local"
+            window.title = L10n.setupTitle
             window.minSize = NSSize(width: 800, height: 620)
             window.isReleasedWhenClosed = false
             window.center()
@@ -258,7 +258,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             AssistantController.shared.start()
         }
         let window = NSWindow(contentViewController: NSHostingController(rootView: view))
-        window.title = onboarding ? "Bem-vindo ao Pynkaro" : "Configurações do Pynkaro"
+        window.title = onboarding ? L10n.welcomeTitle : L10n.settingsTitle
         window.styleMask = [.titled, .closable, .resizable]
         window.minSize = NSSize(width: 580, height: 420)
         window.isReleasedWhenClosed = false
@@ -321,37 +321,37 @@ struct SettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             if isOnboarding {
-                Text("Bem-vindo ao Pynkaro! 🦊")
+                Text(L10n.welcomeTitle)
                     .font(.title2).bold()
-                Text("Configure como o Pynkaro deve funcionar. As chaves de API ficam no Keychain do seu Mac e nunca saem dele.")
+                Text(L10n.welcomeBody)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
-                Text("Configurações do Pynkaro").font(.headline)
+                Text(L10n.settingsTitle).font(.headline)
             }
 
             // Modo de operação
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("Modo de operação").font(.subheadline).bold()
+                    Text(L10n.operationMode).font(.subheadline).bold()
                     Spacer()
                     Button(action: { showLogs.toggle() }) {
-                        Label("Logs", systemImage: showLogs ? "chevron.down" : "chevron.right")
+                        Label(L10n.logsButton, systemImage: showLogs ? "chevron.down" : "chevron.right")
                             .font(.caption)
                     }
                     .buttonStyle(.borderless)
                 }
                 Picker("", selection: $mode) {
-                    Text("Mac").tag(0)
-                    Text("Umbrel").tag(1)
-                    Text("API paga").tag(2)
+                    Text(L10n.modeMac).tag(0)
+                    Text(L10n.modeUmbrel).tag(1)
+                    Text(L10n.modeApi).tag(2)
                 }
                 .pickerStyle(.segmented)
                 Text(mode == 0
-                     ? "LLM (Ollama) e voz (Kokoro) rodam 100% no seu Mac. Nenhuma chave é necessária."
+                     ? L10n.modeMacDesc
                      : mode == 1
-                     ? "LLM e voz rodam na sua Umbrel (Ollama, Kokoro, SearXNG). Nenhuma chave é necessária."
-                     : "LLM via Anthropic e voz via ElevenLabs. Requer chaves de API.")
+                     ? L10n.modeUmbrelDesc
+                     : L10n.modeApiDesc)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -367,19 +367,19 @@ struct SettingsView: View {
                 let kokoroPlaceholder = isMac ? "http://localhost:8888" : "http://umbrel.local:8880"
                 let searxngPlaceholder = isMac ? "http://localhost:8080" : "http://umbrel.local:8080"
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(isMac ? "Servidor local (Mac)" : "Servidor local (Umbrel)").font(.subheadline).bold()
-                    field("Ollama URL", text: $ollamaUrl, placeholder: ollamaPlaceholder)
-                    field("Kokoro URL", text: $kokoroUrl, placeholder: kokoroPlaceholder)
-                    field("SearXNG URL", text: $searxngUrl, placeholder: searxngPlaceholder)
+                    Text(isMac ? L10n.serverMac : L10n.serverUmbrel).font(.subheadline).bold()
+                    field(L10n.ollamaUrlLabel, text: $ollamaUrl, placeholder: ollamaPlaceholder)
+                    field(L10n.kokoroUrlLabel, text: $kokoroUrl, placeholder: kokoroPlaceholder)
+                    field(L10n.searxngUrlLabel, text: $searxngUrl, placeholder: searxngPlaceholder)
                     // Modelo — dropdown com os modelos instalados no Ollama
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Modelo").font(.caption).foregroundStyle(.secondary)
+                        Text(L10n.modelLabel).font(.caption).foregroundStyle(.secondary)
                         if ollamaModels.isEmpty {
                             TextField("qwen2.5:3b", text: $llmModel)
                         } else {
                             Picker("", selection: $llmModel) {
                                 if !ollamaModels.contains(llmModel) && !llmModel.isEmpty {
-                                    Text("Personalizado: \(llmModel)").tag(llmModel)
+                                    Text(L10n.modelCustom + llmModel).tag(llmModel)
                                 }
                                 ForEach(ollamaModels, id: \.self) { model in
                                     Text(model).tag(model)
@@ -392,14 +392,14 @@ struct SettingsView: View {
 
                     // Voz — dropdown com as vozes disponíveis (pt-BR por padrão)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Voz").font(.caption).foregroundStyle(.secondary)
+                        Text(L10n.voiceLabel).font(.caption).foregroundStyle(.secondary)
                         if kokoroVoices.isEmpty && kokoroVoice.isEmpty {
                             TextField("pm_alex", text: $kokoroVoice)
                         } else {
                             Picker("", selection: $kokoroVoice) {
-                                Text("Voz do sistema (Mac)").tag("")
+                                Text(L10n.voiceSystem).tag("")
                                 if !kokoroVoice.isEmpty && !allVoiceIds.contains(kokoroVoice) {
-                                    Text("Personalizado: \(kokoroVoice)").tag(kokoroVoice)
+                                    Text(L10n.voiceCustom + kokoroVoice).tag(kokoroVoice)
                                 }
                                 if showAllVoices {
                                     ForEach(organizedVoices) { voice in
@@ -413,16 +413,16 @@ struct SettingsView: View {
                             }
                             .pickerStyle(.menu)
                             .labelsHidden()
-                            Toggle("Mostrar todas as vozes", isOn: $showAllVoices)
+                            Toggle(L10n.voiceShowAll, isOn: $showAllVoices)
                                 .font(.caption)
                                 .toggleStyle(.checkbox)
                         }
                     }
-                    field("Wake words (separadas por vírgula)", text: $wakeWordsText, placeholder: "pincaro, jupiter")
+                    field(L10n.wakeWordsLabel, text: $wakeWordsText, placeholder: "pincaro, jupiter")
 
                     // Locale do reconhecimento de fala
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Idioma do microfone").font(.caption).foregroundStyle(.secondary)
+                        Text(L10n.micLanguageLabel).font(.caption).foregroundStyle(.secondary)
                         if supportedLocales.isEmpty {
                             TextField("pt-BR", text: $speechLocale)
                         } else {
@@ -438,7 +438,7 @@ struct SettingsView: View {
                             .labelsHidden()
                         }
                         if !speechLocale.isEmpty && !localeSupportsOnDevice(speechLocale) {
-                            Text("⚠️ Este idioma requer download do pacote de voz em Ajustes do Sistema > Teclado > Ditado.")
+                            Text(L10n.micDownloadWarn)
                                 .font(.caption2)
                                 .foregroundStyle(.orange)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -449,30 +449,30 @@ struct SettingsView: View {
             } else {
                 // Chaves de API
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Chave da Anthropic (obrigatória)")
+                    Text(L10n.anthropicLabel)
                         .font(.subheadline).bold()
                     TextField("sk-ant-...", text: $anthropicKey)
-                    Link("Criar chave em console.anthropic.com",
+                    Link(L10n.createKeyAnthropic,
                          destination: URL(string: "https://console.anthropic.com")!)
                         .font(.caption)
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Chave da ElevenLabs (opcional)")
+                    Text(L10n.elevenLabsLabel)
                         .font(.subheadline).bold()
-                    TextField("Sem ela, o app usa a voz do sistema", text: $elevenLabsKey)
-                    Link("Criar chave em elevenlabs.io",
+                    TextField(L10n.elevenLabsHint, text: $elevenLabsKey)
+                    Link(L10n.createKeyEleven,
                          destination: URL(string: "https://elevenlabs.io/app/settings/api-keys")!)
                         .font(.caption)
                 }
             }
 
-            Text("Chaves são salvas no Keychain; opções de servidor no config.json. Reinicie o app para aplicar.")
+            Text(L10n.saveFooter)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
             HStack {
                 Spacer()
-                Button(isOnboarding ? "Salvar e começar" : "Salvar") {
+                Button(isOnboarding ? L10n.saveAndStart : L10n.saveButton) {
                     save()
                 }
                 .keyboardShortcut(.defaultAction)

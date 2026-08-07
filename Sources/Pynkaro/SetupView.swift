@@ -44,14 +44,14 @@ struct SetupView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Instalação local no Mac 🦊")
+            Text(L10n.setupWelcome)
                 .font(.title2).bold()
-            Text("Seu Mac tem \(ram) GB de RAM. Escolha o modelo e clique em \"Instalar e configurar\" — o app executa a sequência completa e reinicia com a configuração aplicada.")
+            Text(String(format: L10n.setupSubtitle, ram))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             // 1. Modelo
-            GroupBox("1. Modelo (LLM)") {
+            GroupBox(L10n.setupModelGroup) {
                 VStack(alignment: .leading, spacing: 6) {
                     Picker("", selection: $selectedOptionID) {
                         ForEach(compatibleOptions) { option in
@@ -70,7 +70,7 @@ struct SetupView: View {
                             "Bonsai-27B Ternary 2-bit via MLX: Ocupa ~8-9 GB de RAM | 95% da qualidade do FP16, mas deixa pouca memória livre para o sistema."
                         ]
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("⚠️ Ocultas — Modelos de 27B (Requer 32 GB+ de RAM para uso fluído). GPU M4 Pro/Max ou superior recomendado para maior velocidade:")
+                            Text(L10n.setupRAMWarning + " Modelos de 27B (Requer 32 GB+ de RAM para uso fluido). GPU M4 Pro/Max ou superior recomendado para maior velocidade:")
                                 .font(.caption).bold()
                                 .foregroundStyle(.orange)
                             ForEach(blockedText, id: \.self) { line in
@@ -93,9 +93,9 @@ struct SetupView: View {
             }
 
             // 2. Kokoro
-            GroupBox("2. Voz Kokoro local") {
+            GroupBox(L10n.setupVoiceGroup) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Instalado automaticamente pelo orquestrador (venv + modelo baixado na 1ª execução). Os comandos manuais abaixo são apenas o fallback:")
+                    Text(L10n.setupVoiceDesc)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -116,9 +116,9 @@ struct SetupView: View {
                     Text(orchestrator.currentStep).font(.caption)
                 }
                 Spacer()
-                Button("Usar API paga…") { onDone?() }
+                Button(L10n.setupUsePaidApi) { onDone?() }
                     .disabled(orchestrator.isRunning)
-                Button(orchestrator.isRunning ? "Instalando…" : "Instalar e configurar") {
+                Button(orchestrator.isRunning ? L10n.setupInstalling : L10n.setupInstallBtn) {
                     orchestrator.install(option: selectedOption) { option in
                         apply(option)
                     }
@@ -193,7 +193,7 @@ struct SetupView: View {
                     .padding(8)
                     .background(Color.black.opacity(0.06))
                     .cornerRadius(6)
-                Button(isCopied.wrappedValue ? "Copiado ✓" : "Copiar") {
+                Button(isCopied.wrappedValue ? L10n.copiedCheck : L10n.copyButton) {
                     copyToPasteboard(command)
                     isCopied.wrappedValue = true
                 }

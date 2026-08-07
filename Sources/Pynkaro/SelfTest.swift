@@ -80,6 +80,14 @@ enum SelfTest {
         check("parseAnthropicText sem texto",
               ClaudeClient.parseAnthropicText(anthropicVazio) == nil)
 
+        // MARK: ClaudeClient.timestampPrefix (cache KV do Ollama)
+        let tp = ClaudeClient.timestampPrefix()
+        check("timestampPrefix não é vazio", !tp.isEmpty)
+        check("timestampPrefix começa com 'Data e hora atuais'",
+              tp.hasPrefix("Data e hora atuais"))
+        check("timestampPrefix termina com separador",
+              tp.hasSuffix(". "))
+
         // MARK: IntroScript.matches (apresentação pré-definida)
         check("IntroScript('se apresente')", IntroScript.matches("se apresente"))
         check("IntroScript('Se apresente')", IntroScript.matches("Se apresente"))

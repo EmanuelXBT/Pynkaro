@@ -25,12 +25,9 @@ final class ClaudeClient {
 
     /// Montado a cada pergunta para incluir a data/hora atual do Mac.
     private var systemPrompt: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "pt_BR")
-        formatter.dateFormat = "EEEE, d 'de' MMMM 'de' yyyy, HH:mm"
-        let now = formatter.string(from: Date())
-        let timezone = TimeZone.current.identifier
-
+        // Data/hora NÃO vai aqui: é injetada na última mensagem do usuário
+        // (timestampPrefix) para manter o system prompt estável e o cache KV
+        // do Ollama bater entre perguntas — prefill cai de ~7s para <1s.
         return """
         Você é Pynkaro, um assistente de voz rodando no Mac do usuário. \
         IDIOMA — REGRA ABSOLUTA: você PODE raciocinar e pensar em inglês \
@@ -79,9 +76,8 @@ final class ClaudeClient {
         um toque de bom humor, mas sem exageros, sem argumentos absurdos e \
         sem deixar de fazer sentido. \
         Continue respeitando o limite de uma frase e 40 palavras, sempre em português. \
-        Data e hora atuais no Mac do usuário: \(now), fuso horário \(timezone). \
-        Use essa informação para perguntas sobre data e hora; para a hora em outros \
-        lugares, calcule a diferença de fuso a partir dela. \
+        Para perguntas sobre data e hora, a data e hora atuais do Mac são
+        fornecidas junto com a pergunta.
         Você também tem acesso a busca na web: use-a quando a pergunta envolver \
         fatos atuais (notícias, cotações, clima, esportes). Não cite URLs em voz alta.
         """
@@ -124,6 +120,18 @@ final class ClaudeClient {
         return text.isEmpty ? nil : text
     }
 
+    /// Data/hora atual injetada junto com a pergunta do usuário (em vez do
+    /// system prompt). Mantém o system prompt estável entre perguntas para o
+    /// cache KV do Ollama bater no prefixo — prefill cai de ~7s para <1s.
+    static func timestampPrefix() -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "pt_BR")
+        formatter.dateFormat = "EEEE, d 'de' MMMM 'de' yyyy, HH:mm"
+        let now = formatter.string(from: Date())
+        let timezone = TimeZone.current.identifier
+        return "Data e hora atuais: \(now), fuso \(timezone). "
+    }
+
     func ask(_ question: String, completion: @escaping (Result<String, Error>) -> Void) {
         // Modo Umbrel (Ollama) não exige chave de API.
         if ollamaBaseURL == nil, apiKey.isEmpty {
@@ -150,11 +158,17 @@ final class ClaudeClient {
 
     /// Caminho Anthropic (padrão): Messages API + busca web server-side.
     private func askAnthropic(completion: @escaping (Result<String, Error>) -> Void) {
+        // Data/hora entra na última mensagem (pergunta atual), não no system
+        // prompt — mantém o prefixo estável para o cache do provedor.
+        var messages = history
+        if let last = messages.indices.last {
+            messages[last]["content"] = Self.timestampPrefix() + (messages[last]["content"] ?? "")
+        }
         var body: [String: Any] = [
             "model": model,
             "max_tokens": 1000,
             "system": systemPrompt,
-            "messages": history
+            "messages": messages
         ]
         if webSearchEnabled {
             // Ferramenta executada nos servidores da Anthropic: o Claude decide
@@ -263,6 +277,12 @@ final class ClaudeClient {
             messages.append(["role": "system", "content": context])
         }
         messages.append(contentsOf: history)
+        // Data/hora na última mensagem (pergunta atual): o system prompt fica
+        // estável e o cache KV do Ollama reutiliza o prefixo entre perguntas
+        // (prefill ~7s → <1s medido).
+        if let last = messages.indices.last {
+            messages[last]["content"] = Self.timestampPrefix() + (messages[last]["content"] ?? "")
+        }
 
         let body: [String: Any] = [
             "model": ollamaModel,

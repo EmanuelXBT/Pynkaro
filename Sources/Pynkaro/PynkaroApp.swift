@@ -618,10 +618,15 @@ struct SettingsView: View {
     /// Nome legível: "pt-BR" → "Português (Brasil)", "en-US" → "English (United States)".
     private func localeDisplayName(_ identifier: String) -> String {
         let locale = Locale(identifier: identifier)
-        if let language = locale.localizedString(forLanguageCode: locale.language.languageCode?.identifier ?? "") {
-            return language
+        guard let langCode = locale.language.languageCode?.identifier,
+              let language = locale.localizedString(forLanguageCode: langCode) else {
+            return identifier
         }
-        return identifier
+        if let regionCode = locale.region?.identifier,
+           let region = locale.localizedString(forRegionCode: regionCode) {
+            return "\(language) (\(region))"
+        }
+        return language
     }
 
     /// Verifica se o locale suporta reconhecimento on-device (não cai para servidores Apple).

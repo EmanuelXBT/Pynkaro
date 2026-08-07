@@ -115,10 +115,23 @@ struct Config: Decodable {
         return shared.introEnabled ?? false
     }
 
-    /// Locale do reconhecimento de fala (ex.: "pt-BR", "en-US"). Default "pt-BR".
-    /// Resolução: env var PYNKARO_SPEECH_LOCALE > config.json (speech_locale).
+    /// Locale do reconhecimento de fala (ex.: "pt-BR", "en-US").
+    /// Resolução: env var PYNKARO_SPEECH_LOCALE > config.json (speech_locale)
+    /// > idioma do sistema > fallback "pt-BR".
     static var speechLocale: String {
-        env("PYNKARO_SPEECH_LOCALE") ?? shared.speechLocale ?? "pt-BR"
+        env("PYNKARO_SPEECH_LOCALE") ?? shared.speechLocale ?? systemSpeechLocale()
+    }
+
+    /// Mapeia o idioma do sistema para um locale compatível com SFSpeechRecognizer.
+    /// Idiomas não mapeados caem em "pt-BR".
+    private static func systemSpeechLocale() -> String {
+        let lang = Locale.current.language.languageCode?.identifier ?? "pt"
+        let map: [String: String] = [
+            "pt": "pt-BR", "en": "en-US", "es": "es-ES", "fr": "fr-FR",
+            "de": "de-DE", "it": "it-IT", "ja": "ja-JP", "ko": "ko-KR",
+            "zh": "zh-CN", "ru": "ru-RU", "ar": "ar-SA",
+        ]
+        return map[lang] ?? "pt-BR"
     }
 
     /// Modos de operação suportados pelo Pynkaro.

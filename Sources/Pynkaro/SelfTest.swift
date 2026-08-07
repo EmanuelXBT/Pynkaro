@@ -103,8 +103,11 @@ enum SelfTest {
               AvatarWindow.speechRange(total: 500, fraction: 2).location <= 500)
 
         // MARK: Config.speechLocale
-        check("speechLocale default é pt-BR",
-              Config.speechLocale == "pt-BR")
+        let sl = Config.speechLocale
+        check("speechLocale não é vazio",
+              !sl.isEmpty)
+        check("speechLocale tem formato xx-XX",
+              sl.contains("-") && sl.split(separator: "-").count == 2)
 
         print("")
         if failures == 0 {

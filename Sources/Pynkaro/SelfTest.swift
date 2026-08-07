@@ -102,6 +102,10 @@ enum SelfTest {
         check("speechRange clampa fração >1",
               AvatarWindow.speechRange(total: 500, fraction: 2).location <= 500)
 
+        // MARK: Config.speechLocale
+        check("speechLocale default é pt-BR",
+              Config.speechLocale == "pt-BR")
+
         print("")
         if failures == 0 {
             print("✅ SELFTEST OK — \(passed) verificações passaram")

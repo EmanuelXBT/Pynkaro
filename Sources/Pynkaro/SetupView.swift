@@ -165,7 +165,8 @@ struct SetupView: View {
             searxngUrl: Config.searxngBaseURL,
             llmModel: option.modelName,
             kokoroVoice: "pm_alex",
-            wakeWords: Config.wakeWords)
+            wakeWords: Config.wakeWords,
+            speechLocale: nil)
         restartApp()
     }
 

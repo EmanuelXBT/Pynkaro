@@ -38,7 +38,7 @@ final class VoiceAssistant: NSObject {
     private var isPaused = false {
         didSet { emitStatus() }
     }
-    private let recognizer = SpeechRecognizer()
+    private let recognizer = SpeechRecognizer(localeIdentifier: Config.speechLocale)
     private let speaker: Speaking = {
         // Modo Umbrel: Kokoro TTS local (gratuito) tem prioridade.
         if let kokoroURL = Config.kokoroBaseURL {

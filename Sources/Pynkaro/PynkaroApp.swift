@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import Combine
 import UserNotifications
+import Speech
 
 /// App de menu bar. A UI do status item é feita com NSStatusItem (AppKit),
 /// mais confiável que o MenuBarExtra do SwiftUI no macOS 13.
@@ -285,8 +286,10 @@ struct SettingsView: View {
     @State private var llmModel: String
     @State private var kokoroVoice: String
     @State private var wakeWordsText: String
+    @State private var speechLocale: String
     @State private var ollamaModels: [String] = []
     @State private var kokoroVoices: [String] = []
+    @State private var supportedLocales: [String] = []
     @State private var showAllVoices = false
 
     init(isOnboarding: Bool, onSaved: (() -> Void)? = nil) {
@@ -311,6 +314,7 @@ struct SettingsView: View {
         // Sem kokoro_url = voz do sistema; o Picker mostra a opção dedicada.
         _kokoroVoice = State(initialValue: Config.kokoroBaseURL == nil ? "" : Config.kokoroVoice)
         _wakeWordsText = State(initialValue: (Config.wakeWords ?? []).joined(separator: ", "))
+        _speechLocale = State(initialValue: Config.speechLocale)
     }
 
     var body: some View {
@@ -408,6 +412,32 @@ struct SettingsView: View {
                         }
                     }
                     field("Wake words (separadas por vírgula)", text: $wakeWordsText, placeholder: "pincaro, jupiter")
+
+                    // Locale do reconhecimento de fala
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Idioma do microfone").font(.caption).foregroundStyle(.secondary)
+                        if supportedLocales.isEmpty {
+                            TextField("pt-BR", text: $speechLocale)
+                        } else {
+                            Picker("", selection: $speechLocale) {
+                                if !speechLocale.isEmpty && !supportedLocales.contains(speechLocale) {
+                                    Text("Personalizado: \(speechLocale)").tag(speechLocale)
+                                }
+                                ForEach(supportedLocales, id: \.self) { loc in
+                                    Text(localeDisplayName(loc)).tag(loc)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
+                        }
+                        if !speechLocale.isEmpty && !localeSupportsOnDevice(speechLocale) {
+                            Text("⚠️ Este idioma requer download do pacote de voz em Ajustes do Sistema > Teclado > Ditado.")
+                                .font(.caption2)
+                                .foregroundStyle(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .onAppear { loadSupportedLocales() }
                 }
             } else {
                 // Chaves de API
@@ -534,6 +564,7 @@ struct SettingsView: View {
     private func loadDynamicOptions() {
         loadOllamaModels()
         loadKokoroVoices()
+        loadSupportedLocales()
     }
 
     /// Lista os modelos instalados no Ollama (GET /api/tags).
@@ -574,6 +605,33 @@ struct SettingsView: View {
         base.hasSuffix("/v1") ? base + "/audio/voices" : base + "/v1/audio/voices"
     }
 
+    // MARK: - Locale do microfone
+
+    /// Lista os locales suportados pelo SFSpeechRecognizer neste Mac.
+    private func loadSupportedLocales() {
+        let locales = SFSpeechRecognizer.supportedLocales()
+        DispatchQueue.main.async {
+            self.supportedLocales = locales.map { $0.identifier }.sorted()
+        }
+    }
+
+    /// Nome legível: "pt-BR" → "Português (Brasil)", "en-US" → "English (United States)".
+    private func localeDisplayName(_ identifier: String) -> String {
+        let locale = Locale(identifier: identifier)
+        if let language = locale.localizedString(forLanguageCode: locale.language.languageCode?.identifier ?? "") {
+            return language
+        }
+        return identifier
+    }
+
+    /// Verifica se o locale suporta reconhecimento on-device (não cai para servidores Apple).
+    private func localeSupportsOnDevice(_ identifier: String) -> Bool {
+        guard let r = SFSpeechRecognizer(locale: Locale(identifier: identifier)) else {
+            return false
+        }
+        return r.supportsOnDeviceRecognition
+    }
+
     private func field(_ title: String, text: Binding<String>, placeholder: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title).font(.caption).foregroundStyle(.secondary)
@@ -598,13 +656,15 @@ struct SettingsView: View {
                 kokoroVoice: effectiveKokoroVoice,
                 wakeWords: wakeWordsText.split(separator: ",")
                     .map { $0.trimmingCharacters(in: .whitespaces) }
-                    .filter { !$0.isEmpty })
+                    .filter { !$0.isEmpty },
+                speechLocale: speechLocale)
         } else {
             // Modo API: remove as opções locais (sem ollama_url = modo API)
             // e grava o mode explicitamente.
             Config.saveUmbrelOptions(mode: .api, ollamaUrl: nil, kokoroUrl: nil,
                                      searxngUrl: nil, llmModel: nil,
-                                     kokoroVoice: nil, wakeWords: nil)
+                                     kokoroVoice: nil, wakeWords: nil,
+                                     speechLocale: nil)
         }
         onSaved?()
         // Reinicia o app para recarregar o Config (opções valem no start).

@@ -11,5 +11,7 @@
   "searxng_url": "http://umbrel.local:8080",
   "wake_words": ["pincaro", "outra_palavra"],
 
+  "speech_locale": "pt-BR",
+
   "intro_enabled": false
 }

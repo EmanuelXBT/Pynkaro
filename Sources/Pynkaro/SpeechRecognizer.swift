@@ -20,9 +20,13 @@ final class SpeechRecognizer {
     /// Contador de geração: invalida callbacks de sessões antigas.
     private var generation = 0
 
-    init() {
-        guard let r = SFSpeechRecognizer(locale: Locale(identifier: "pt-BR")) else {
-            fatalError("Reconhecimento de fala em pt-BR não está disponível neste Mac.")
+    /// Cria um reconhecedor para o locale especificado (default: pt-BR).
+    /// Passar um locale não suportado causa fatalError — valide antes com
+    /// `SFSpeechRecognizer.supportedLocales()`.
+    init(localeIdentifier: String = "pt-BR") {
+        let locale = Locale(identifier: localeIdentifier)
+        guard let r = SFSpeechRecognizer(locale: locale) else {
+            fatalError("Reconhecimento de fala em \(localeIdentifier) não está disponível neste Mac.")
         }
         recognizer = r
     }

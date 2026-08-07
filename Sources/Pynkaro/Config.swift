@@ -31,6 +31,9 @@ struct Config: Decodable {
     /// Configurações/Instalador. Configs antigos sem o campo são inferidos
     /// pela URL (localhost → Mac, IP LAN → Umbrel, ausente → API).
     var mode: String?
+    /// Locale do reconhecimento de fala (ex.: "pt-BR", "en-US"). Default "pt-BR".
+    /// Resolução: env var PYNKARO_SPEECH_LOCALE > config.json (speech_locale).
+    var speechLocale: String?
 
     enum CodingKeys: String, CodingKey {
         case anthropicApiKey = "anthropic_api_key"
@@ -43,6 +46,7 @@ struct Config: Decodable {
         case wakeWords = "wake_words"
         case introEnabled = "intro_enabled"
         case mode = "mode"
+        case speechLocale = "speech_locale"
     }
 
     static let shared = load()
@@ -111,6 +115,12 @@ struct Config: Decodable {
         return shared.introEnabled ?? false
     }
 
+    /// Locale do reconhecimento de fala (ex.: "pt-BR", "en-US"). Default "pt-BR".
+    /// Resolução: env var PYNKARO_SPEECH_LOCALE > config.json (speech_locale).
+    static var speechLocale: String {
+        env("PYNKARO_SPEECH_LOCALE") ?? shared.speechLocale ?? "pt-BR"
+    }
+
     /// Modos de operação suportados pelo Pynkaro.
     enum PynkaroMode: String {
         /// Tudo roda no próprio Mac (Ollama local + Kokoro via LaunchAgent).
@@ -169,7 +179,8 @@ struct Config: Decodable {
     static func saveUmbrelOptions(mode: PynkaroMode,
                                   ollamaUrl: String?, kokoroUrl: String?,
                                   searxngUrl: String?, llmModel: String?,
-                                  kokoroVoice: String?, wakeWords: [String]?) {
+                                  kokoroVoice: String?, wakeWords: [String]?,
+                                  speechLocale: String?) {
         var dict: [String: Any] = ["mode": mode.rawValue]
         if let ollamaUrl, !ollamaUrl.isEmpty { dict["ollama_url"] = ollamaUrl }
         if let kokoroUrl, !kokoroUrl.isEmpty { dict["kokoro_url"] = kokoroUrl }
@@ -177,6 +188,7 @@ struct Config: Decodable {
         if let llmModel, !llmModel.isEmpty { dict["llm_model"] = llmModel }
         if let kokoroVoice, !kokoroVoice.isEmpty { dict["kokoro_voice"] = kokoroVoice }
         if let wakeWords, !wakeWords.isEmpty { dict["wake_words"] = wakeWords }
+        if let speechLocale, !speechLocale.isEmpty { dict["speech_locale"] = speechLocale }
 
         let fm = FileManager.default
         let url = fm.homeDirectoryForCurrentUser

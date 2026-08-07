@@ -291,6 +291,7 @@ struct SettingsView: View {
     @State private var kokoroVoices: [String] = []
     @State private var supportedLocales: [String] = []
     @State private var showAllVoices = false
+    @State private var showLogs = false
 
     init(isOnboarding: Bool, onSaved: (() -> Void)? = nil) {
         self.isOnboarding = isOnboarding
@@ -336,23 +337,33 @@ struct SettingsView: View {
                     Text(L10n.modeMac).tag(0)
                     Text(L10n.modeUmbrel).tag(1)
                     Text(L10n.modeApi).tag(2)
-                    Text(L10n.logsButton).tag(3)
                 }
                 .pickerStyle(.segmented)
-                if mode != 3 {
-                    Text(mode == 0
-                         ? L10n.modeMacDesc
-                         : mode == 1
-                         ? L10n.modeUmbrelDesc
-                         : L10n.modeApiDesc)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                Text(mode == 0
+                     ? L10n.modeMacDesc
+                     : mode == 1
+                     ? L10n.modeUmbrelDesc
+                     : L10n.modeApiDesc)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
-            if mode == 3 {
+            Divider()
+
+            Button(action: { showLogs.toggle() }) {
+                HStack {
+                    Image(systemName: showLogs ? "chevron.down" : "chevron.right")
+                        .font(.caption)
+                    Text(L10n.logsButton)
+                }
+            }
+            .buttonStyle(.borderless)
+
+            if showLogs {
                 LogsPanel()
-            } else if mode == 0 || mode == 1 {
+            }
+
+            if mode == 0 || mode == 1 {
                 // Opções do servidor local (Mac ou Umbrel)
                 let isMac = mode == 0
                 let ollamaPlaceholder = isMac ? "http://localhost:11434/v1" : "http://umbrel.local:11434/v1"
@@ -458,19 +469,17 @@ struct SettingsView: View {
                 }
             }
 
-            if mode != 3 {
-                Text(L10n.saveFooter)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            Text(L10n.saveFooter)
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-                HStack {
-                    Spacer()
-                    Button(isOnboarding ? L10n.saveAndStart : L10n.saveButton) {
-                        save()
-                    }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(mode == 2 && anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
+            HStack {
+                Spacer()
+                Button(isOnboarding ? L10n.saveAndStart : L10n.saveButton) {
+                    save()
                 }
+                .keyboardShortcut(.defaultAction)
+                .disabled(mode == 2 && anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
         .textFieldStyle(.roundedBorder)
